@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ chat.title or "Chat " + chat_id|string }} - Telegram Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900">
+                            {{ chat.title or "Chat " + chat_id|string }}
+                        </h1>
+                        <p class="mt-2 text-gray-600">Chat ID: {{ chat_id }}</p>
+                    </div>
+                    <a href="/ui" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        ← Back to Chats
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <div class="px-4 py-6 sm:px-0">
+                
+                <!-- Notification area -->
+                <div id="notification" class="hidden fixed top-4 right-4 max-w-sm bg-white border border-red-200 rounded-lg shadow-lg z-50">
+                    <div class="p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-gray-700" id="notification-text"></p>
+                            </div>
+                            <div class="ml-auto pl-3">
+                                <div class="-mx-1.5 -my-1.5">
+                                    <button onclick="hideNotification()" class="inline-flex bg-white rounded-md p-1.5 text-gray-400 hover:text-gray-500">
+                                        <span class="sr-only">Dismiss</span>
+                                        <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Date Range Selector -->
+                <div class="bg-white shadow rounded-lg mb-6">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h2 class="text-lg font-medium text-gray-900 mb-4">Date Range</h2>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="loadPeriod(7)" class="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Last 7 days</button>
+                            <button onclick="loadPeriod(30)" class="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Last 30 days</button>
+                            <button onclick="loadPeriod(90)" class="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Last 90 days</button>
+                            <div class="flex gap-2 items-center">
+                                <input type="date" id="start-date" class="px-3 py-2 border border-gray-300 rounded">
+                                <span class="text-gray-500">to</span>
+                                <input type="date" id="end-date" class="px-3 py-2 border border-gray-300 rounded">
+                                <button onclick="loadCustomPeriod()" class="px-3 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Load</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <span class="text-white text-sm font-bold">M</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">Messages</dt>
+                                        <dd class="text-lg font-medium text-gray-900" id="kpi-messages">-</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                        <span class="text-white text-sm font-bold">U</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">Unique Users</dt>
+                                        <dd class="text-lg font-medium text-gray-900" id="kpi-users">-</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                                        <span class="text-white text-sm font-bold">D</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">Avg Daily Users</dt>
+                                        <dd class="text-lg font-medium text-gray-900" id="kpi-dau">-</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                                        <span class="text-white text-sm font-bold">N</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">New Users</dt>
+                                        <dd class="text-lg font-medium text-gray-900" id="kpi-new">-</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Messages Chart -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-4 py-5 sm:p-6">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Messages Over Time</h3>
+                            <canvas id="messagesChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- DAU Chart -->
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="px-4 py-5 sm:p-6">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Daily Active Users</h3>
+                            <canvas id="dauChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Heatmap -->
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Activity Heatmap</h3>
+                        <div class="overflow-x-auto">
+                            <div class="w-max">
+                                <!-- Header row with day label and hours -->
+                                <div class="flex">
+                                    <div class="w-12 h-4 flex items-center justify-center"></div> <!-- Empty space for day labels -->
+                                    <div class="flex gap-1 min-w-max">
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">00</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">01</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">02</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">03</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">04</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">05</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">06</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">07</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">08</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">09</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">10</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">11</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">12</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">13</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">14</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">15</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">16</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">17</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">18</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">19</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">20</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">21</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">22</div>
+                                        <div class="w-4 h-4 text-xs text-gray-500 text-center flex items-center justify-center">23</div>
+                                    </div>
+                                </div>
+                                <!-- Heatmap rows with day labels -->
+                                <div id="heatmap">
+                                    <!-- Will be populated by JavaScript -->
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-center justify-between text-sm text-gray-500">
+                                <div class="flex items-center">
+                                    <span>Less</span>
+                                    <div class="mx-2 flex gap-1">
+                                        <div class="w-3 h-3 bg-gray-100 border"></div>
+                                        <div class="w-3 h-3 bg-blue-200 border"></div>
+                                        <div class="w-3 h-3 bg-blue-400 border"></div>
+                                        <div class="w-3 h-3 bg-blue-600 border"></div>
+                                        <div class="w-3 h-3 bg-blue-800 border"></div>
+                                    </div>
+                                    <span>More</span>
+                                </div>
+                                <div>Hours (0-23) × Days (Mon-Sun)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Global variables
+        let messagesChart = null;
+        let dauChart = null;
+        let currentPeriod = 30;
+
+        // Notification functions
+        function showNotification(message, type = 'error') {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notification-text');
+            
+            notificationText.textContent = message;
+            notification.classList.remove('hidden');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                hideNotification();
+            }, 5000);
+        }
+
+        function hideNotification() {
+            const notification = document.getElementById('notification');
+            notification.classList.add('hidden');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPeriod(30);
+        });
+
+        function loadPeriod(days) {
+            currentPeriod = days;
+            const endDate = new Date();
+            const startDate = new Date(endDate - days * 24 * 60 * 60 * 1000);
+            
+            const startStr = startDate.toISOString().split('T')[0];
+            // Don't send endStr for period filters - let backend use end of today
+            
+            loadData(startStr, null);
+        }
+
+        function loadCustomPeriod() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            
+            if (!startDate || !endDate) {
+                showNotification('Please select both start and end dates');
+                return;
+            }
+            
+            loadData(startDate, endDate);
+        }
+
+        async function loadData(fromDate, toDate) {
+            // Show loading state
+            const kpiElements = ['kpi-messages', 'kpi-users', 'kpi-dau', 'kpi-new'];
+            kpiElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = 'Loading...';
+            });
+
+            try {
+                // Build URL parameters
+                const buildUrl = (endpoint, params = {}) => {
+                    const url = new URL(`/internal/chats/{{ chat_id }}/${endpoint}`, window.location.origin);
+                    url.searchParams.set('from', fromDate);
+                    if (toDate) {
+                        url.searchParams.set('to', toDate);
+                    }
+                    Object.entries(params).forEach(([key, value]) => {
+                        url.searchParams.set(key, value);
+                    });
+                    return url.toString();
+                };
+
+                // Load summary
+                const summaryResponse = await fetch(buildUrl('summary'));
+                if (!summaryResponse.ok) {
+                    throw new Error(`Summary API error: ${summaryResponse.status}`);
+                }
+                const summary = await summaryResponse.json();
+                
+                document.getElementById('kpi-messages').textContent = summary.total_messages.toLocaleString();
+                document.getElementById('kpi-users').textContent = summary.unique_users.toLocaleString();
+                document.getElementById('kpi-dau').textContent = summary.avg_daily_users.toFixed(1);
+                document.getElementById('kpi-new').textContent = summary.new_users.toLocaleString();
+
+                // Load timeseries data
+                const [messagesResponse, dauResponse] = await Promise.all([
+                    fetch(buildUrl('timeseries', {metric: 'messages'})),
+                    fetch(buildUrl('timeseries', {metric: 'dau'}))
+                ]);
+
+                if (!messagesResponse.ok) {
+                    throw new Error(`Messages API error: ${messagesResponse.status}`);
+                }
+                if (!dauResponse.ok) {
+                    throw new Error(`DAU API error: ${dauResponse.status}`);
+                }
+
+                const messagesData = await messagesResponse.json();
+                const dauData = await dauResponse.json();
+
+                updateCharts(messagesData, dauData);
+
+                // Load heatmap
+                const heatmapResponse = await fetch(buildUrl('heatmap'));
+                if (!heatmapResponse.ok) {
+                    throw new Error(`Heatmap API error: ${heatmapResponse.status}`);
+                }
+                const heatmapData = await heatmapResponse.json();
+                updateHeatmap(heatmapData);
+
+                // Hide any previous notifications on success
+                hideNotification();
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                
+                // Reset loading state
+                kpiElements.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.textContent = '0';
+                });
+                
+                // Show more specific error messages
+                let errorMessage = 'Error loading data. ';
+                if (error.message.includes('404')) {
+                    errorMessage += 'Chat not found or no data available for this period.';
+                } else if (error.message.includes('API error')) {
+                    errorMessage += 'Server error occurred. Please try again.';
+                } else {
+                    errorMessage += 'Please try again or check if this chat has any messages.';
+                }
+                
+                showNotification(errorMessage);
+                
+                // Load empty charts and heatmap
+                updateCharts([], []);
+                updateHeatmap(null);
+            }
+        }
+
+        function updateCharts(messagesData, dauData) {
+            // Handle empty data arrays
+            if (!messagesData || !Array.isArray(messagesData)) {
+                messagesData = [];
+            }
+            if (!dauData || !Array.isArray(dauData)) {
+                dauData = [];
+            }
+
+            const labels = messagesData.length > 0 ? messagesData.map(d => d.day) : [];
+            const messagesValues = messagesData.length > 0 ? messagesData.map(d => d.value) : [];
+            const dauValues = dauData.length > 0 ? dauData.map(d => d.value) : [];
+
+            // Messages chart
+            if (messagesChart) {
+                messagesChart.destroy();
+            }
+            
+            const messagesCtx = document.getElementById('messagesChart').getContext('2d');
+            messagesChart = new Chart(messagesCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Messages',
+                        data: messagesValues,
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+
+            // DAU chart
+            if (dauChart) {
+                dauChart.destroy();
+            }
+            
+            const dauCtx = document.getElementById('dauChart').getContext('2d');
+            dauChart = new Chart(dauCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Daily Active Users',
+                        data: dauValues,
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateHeatmap(heatmapData) {
+            const heatmapContainer = document.getElementById('heatmap');
+            heatmapContainer.innerHTML = '';
+
+            // Handle missing or invalid heatmap data
+            if (!heatmapData || !heatmapData.data || !Array.isArray(heatmapData.data)) {
+                // Create empty heatmap
+                heatmapData = {
+                    data: Array(7).fill().map(() => Array(24).fill(0)),
+                    weekdays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                };
+            }
+
+            const data = heatmapData.data;
+            let maxValue = 0;
+            
+            // Find max value safely
+            try {
+                for (let day = 0; day < 7; day++) {
+                    if (data[day] && Array.isArray(data[day])) {
+                        for (let hour = 0; hour < 24; hour++) {
+                            if (data[day][hour] > maxValue) {
+                                maxValue = data[day][hour];
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Error processing heatmap data:', e);
+                maxValue = 1; // Fallback to prevent division by zero
+            }
+
+            // Create rows for each day
+            for (let day = 0; day < 7; day++) {
+                const dayRow = document.createElement('div');
+                dayRow.className = 'flex gap-1 mb-1';
+                
+                // Day label
+                const dayLabel = document.createElement('div');
+                dayLabel.className = 'w-12 h-4 text-xs text-gray-500 text-right flex items-center justify-end pr-2';
+                const weekday = heatmapData.weekdays && heatmapData.weekdays[day] ? heatmapData.weekdays[day] : `Day ${day}`;
+                dayLabel.textContent = weekday.substring(0, 3); // Mon, Tue, etc.
+                dayRow.appendChild(dayLabel);
+                
+                // Hour cells for this day
+                const hourContainer = document.createElement('div');
+                hourContainer.className = 'flex gap-1 min-w-max';
+                
+                for (let hour = 0; hour < 24; hour++) {
+                    const cell = document.createElement('div');
+                    let value = 0;
+                    
+                    // Safely get value
+                    try {
+                        value = (data[day] && data[day][hour]) ? data[day][hour] : 0;
+                    } catch (e) {
+                        value = 0;
+                    }
+                    
+                    const intensity = maxValue > 0 ? value / maxValue : 0;
+                    
+                    let bgColor = 'bg-gray-100';
+                    if (intensity > 0.8) bgColor = 'bg-blue-800';
+                    else if (intensity > 0.6) bgColor = 'bg-blue-600';
+                    else if (intensity > 0.4) bgColor = 'bg-blue-400';
+                    else if (intensity > 0.2) bgColor = 'bg-blue-200';
+                    else if (intensity > 0) bgColor = 'bg-blue-100';
+
+                    cell.className = `w-4 h-4 border border-gray-200 ${bgColor}`;
+                    cell.title = `${weekday} ${hour}:00 - ${value} messages`;
+                    
+                    hourContainer.appendChild(cell);
+                }
+                
+                dayRow.appendChild(hourContainer);
+                heatmapContainer.appendChild(dayRow);
+            }
+        }
+    </script>
+</body>
+</html>

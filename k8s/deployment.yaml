@@ -1,0 +1,233 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tgstats
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tgstats-config
+  namespace: tgstats
+data:
+  MODE: "webhook"
+  LOG_LEVEL: "INFO"
+  ENABLE_CACHE: "true"
+  CACHE_TTL: "300"
+  RATE_LIMIT_PER_MINUTE: "10"
+  RATE_LIMIT_PER_HOUR: "100"
+  ENABLE_METRICS: "true"
+  ENVIRONMENT: "production"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tgstats-secrets
+  namespace: tgstats
+type: Opaque
+stringData:
+  BOT_TOKEN: "your-bot-token-here"
+  DATABASE_URL: "postgresql+psycopg://user:password@postgres:5432/tgstats"
+  REDIS_URL: "redis://redis:6379/0"
+  ADMIN_API_TOKEN: "your-admin-token-here"
+  WEBHOOK_URL: "https://your-domain.com/webhook"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tgstats-bot
+  namespace: tgstats
+  labels:
+    app: tgstats-bot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tgstats-bot
+  template:
+    metadata:
+      labels:
+        app: tgstats-bot
+    spec:
+      containers:
+      - name: bot
+        image: tgstats-bot:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        envFrom:
+        - configMapRef:
+            name: tgstats-config
+        - secretRef:
+            name: tgstats-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8000
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tgstats-bot
+  namespace: tgstats
+spec:
+  selector:
+    app: tgstats-bot
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tgstats-celery
+  namespace: tgstats
+  labels:
+    app: tgstats-celery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tgstats-celery
+  template:
+    metadata:
+      labels:
+        app: tgstats-celery
+    spec:
+      containers:
+      - name: celery-worker
+        image: tgstats-bot:latest
+        command: ["celery", "-A", "tgstats.celery_app", "worker", "--loglevel=info"]
+        envFrom:
+        - configMapRef:
+            name: tgstats-config
+        - secretRef:
+            name: tgstats-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tgstats-celery-beat
+  namespace: tgstats
+  labels:
+    app: tgstats-celery-beat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tgstats-celery-beat
+  template:
+    metadata:
+      labels:
+        app: tgstats-celery-beat
+    spec:
+      containers:
+      - name: celery-beat
+        image: tgstats-bot:latest
+        command: ["celery", "-A", "tgstats.celery_app", "beat", "--loglevel=info"]
+        envFrom:
+        - configMapRef:
+            name: tgstats-config
+        - secretRef:
+            name: tgstats-secrets
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tgstats-ingress
+  namespace: tgstats
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - your-domain.com
+    secretName: tgstats-tls
+  rules:
+  - host: your-domain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: tgstats-bot
+            port:
+              number: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tgstats-metrics
+  namespace: tgstats
+  labels:
+    app: tgstats-bot
+spec:
+  selector:
+    app: tgstats-bot
+  ports:
+  - name: metrics
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tgstats-monitor
+  namespace: tgstats
+  labels:
+    app: tgstats-bot
+spec:
+  selector:
+    matchLabels:
+      app: tgstats-bot
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: 30s

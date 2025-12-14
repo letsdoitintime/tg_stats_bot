@@ -1,0 +1,21 @@
+[Unit]
+Description=TG Stats Bot - Telegram Statistics Bot
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/TelegramBots/Chat_Stats
+Environment=PATH=/TelegramBots/Chat_Stats/venv/bin
+ExecStartPre=/TelegramBots/Chat_Stats/venv/bin/alembic upgrade head
+ExecStart=/TelegramBots/Chat_Stats/venv/bin/python -m tgstats.bot_main
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tgstats-bot
+
+[Install]
+WantedBy=multi-user.target
