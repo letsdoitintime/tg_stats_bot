@@ -1,25 +1,18 @@
 # Telegram Analytics Bot (tg-stats) - Step 2: Aggregations + API + UI
 
-####
-andrew@Andrews-MacBook Chat Stats % cd "/Users/andrew/TelegaBot/Projects Local/Chat Stats" && echo "=== PostgreSQL Connection Details ===" && echo "" && echo "📋 Connection Info:" && echo "  Host: localhost" && echo "  Port: 5433" && echo "  Database: tgstats" && echo "  Username: andrew" && echo "  Password: (none - trust auth)" && echo "" && echo "🔧 Connection Commands:" && echo "  psql: /opt/homebrew/opt/postgresql@16/bin/psql -h localhost -p 5433 -U andrew -d tgstats" && echo "  URL:  postgresql://andrew@localhost:5433/tgstats" && echo "" && echo "📁 Config Files:" && echo "  Main config: postgres_data/postgresql.conf" && echo "  Auth config: postgres_data/pg_hba.conf"
-=== PostgreSQL Connection Details ===
+## PostgreSQL connection (example)
 
-📋 Connection Info:
-  Host: localhost
-  Port: 5433
-  Database: tgstats
-  Username: andrew
-  Password: (none - trust auth)
+If you're running the local stack from `./start_bot.sh`, Postgres is typically available on `localhost:5433`.
 
-🔧 Connection Commands:
-  psql: /opt/homebrew/opt/postgresql@16/bin/psql -h localhost -p 5433 -U andrew -d tgstats
-  URL:  postgresql://andrew@localhost:5433/tgstats
+```bash
+psql -h localhost -p 5433 -U <db_user> -d tgstats
+```
 
-📁 Config Files:
-  Main config: postgres_data/postgresql.conf
-  Auth config: postgres_data/pg_hba.conf
-andrew@Andrews-MacBook Chat Stats % 
-####
+Example URL format:
+
+```text
+postgresql://<db_user>:<db_password>@localhost:5433/tgstats
+```
 
 🗄️ **This is a self-contained local setup with PostgreSQL database files in the project folder.**
 
