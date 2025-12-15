@@ -1,11 +1,20 @@
-"""Input sanitization utilities for security."""
+"""Input sanitization utilities for security.
+
+This module provides functions to sanitize and validate user inputs
+to prevent security issues like SQL injection, XSS, and command injection.
+
+Note: These are defense-in-depth measures. The primary security mechanisms are:
+- Parameterized queries for SQL (via SQLAlchemy)
+- Output encoding for web content (via template engines)
+- Input validation at the API layer (via Pydantic)
+"""
 
 import html
 import re
 from typing import Optional
 import structlog
 
-logger = structlog.get_logger()
+logger = structlog.get_logger(__name__)
 
 # Regex patterns
 SQL_INJECTION_PATTERN = re.compile(

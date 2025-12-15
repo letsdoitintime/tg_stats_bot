@@ -1,13 +1,14 @@
-"""Input validation utilities with detailed error messages."""
+"""Input validation utilities with detailed error messages.
+
+This module provides validation functions for various input types used throughout
+the application, with clear error messages and proper type conversions.
+"""
 
 import re
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 from datetime import datetime
 
-
-class ValidationError(Exception):
-    """Custom validation error with user-friendly messages."""
-    pass
+from ..core.exceptions import ValidationError
 
 
 def validate_chat_id(chat_id: Any) -> int:
@@ -81,7 +82,7 @@ def validate_retention_days(days: Any, setting_name: str = "retention") -> int:
         )
 
 
-def validate_page_params(page: Any, page_size: Any, max_page_size: int = 100) -> tuple[int, int]:
+def validate_page_params(page: Any, page_size: Any, max_page_size: int = 100) -> Tuple[int, int]:
     """
     Validate pagination parameters.
     
