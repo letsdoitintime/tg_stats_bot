@@ -23,6 +23,7 @@ from ..models import Chat, GroupSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..celery_tasks import retention_preview
 from .health import router as health_router
+from .error_handlers import register_error_handlers
 
 logger = structlog.get_logger(__name__)
 
@@ -95,6 +96,9 @@ async def limit_request_size(request: Request, call_next):
 
 # Include health check router
 app.include_router(health_router)
+
+# Register error handlers
+register_error_handlers(app)
 
 # Templates for minimal UI
 templates = Jinja2Templates(directory="tgstats/web/templates")

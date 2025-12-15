@@ -7,7 +7,6 @@ import structlog
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.exceptions import (
