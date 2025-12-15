@@ -1,8 +1,10 @@
 """Health check and monitoring endpoints."""
 
+import asyncio
 from fastapi import APIRouter, Response, status
 from sqlalchemy import text
 import structlog
+import redis.asyncio as aioredis
 
 from ..db import engine
 from ..utils.metrics import metrics
@@ -11,6 +13,43 @@ from ..core.config import settings
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(tags=["health"])
+
+
+async def check_redis() -> bool:
+    """Check Redis connectivity."""
+    try:
+        redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        await redis_client.ping()
+        await redis_client.close()
+        return True
+    except Exception as e:
+        logger.error("redis_check_failed", error=str(e))
+        return False
+
+
+async def check_celery() -> dict:
+    """Check Celery worker status."""
+    try:
+        from ..celery_app import celery_app
+        inspect = celery_app.control.inspect()
+        
+        # Check with timeout
+        stats = await asyncio.wait_for(
+            asyncio.to_thread(inspect.stats),
+            timeout=2.0
+        )
+        
+        active_workers = len(stats) if stats else 0
+        return {
+            "available": active_workers > 0,
+            "worker_count": active_workers
+        }
+    except asyncio.TimeoutError:
+        logger.warning("celery_check_timeout")
+        return {"available": False, "worker_count": 0, "error": "timeout"}
+    except Exception as e:
+        logger.error("celery_check_failed", error=str(e))
+        return {"available": False, "worker_count": 0, "error": str(e)}
 
 
 @router.get("/health")
@@ -44,6 +83,8 @@ async def readiness_probe(response: Response):
     """
     checks = {
         "database": False,
+        "redis": False,
+        "celery": {},
         "overall": False
     }
     
@@ -57,10 +98,14 @@ async def readiness_probe(response: Response):
         logger.error("readiness_check_db_failed", error=str(e))
         checks["database"] = False
     
-    # Overall status
-    checks["overall"] = all([
-        checks["database"]
-    ])
+    # Check Redis
+    checks["redis"] = await check_redis()
+    
+    # Check Celery (optional - don't fail if workers not running)
+    checks["celery"] = await check_celery()
+    
+    # Overall status (Redis/Celery are optional)
+    checks["overall"] = checks["database"]
     
     if checks["overall"]:
         return {"status": "ready", "checks": checks}

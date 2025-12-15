@@ -1,0 +1,35 @@
+# Plugin Configuration
+# 
+# This file controls which plugins are enabled/disabled.
+# 
+# To disable a plugin:
+# 1. Set enabled: false for the plugin
+# 2. OR rename the plugin file with underscore prefix (e.g., _plugin.py)
+# 
+# Plugin files/folders starting with _ are automatically ignored.
+
+plugins:
+  word_cloud:
+    enabled: true
+    config:
+      # Custom config for word_cloud plugin
+      # These will be passed to the plugin on initialization
+      default_days: 30
+      default_top_n: 100
+  
+  heatmap_command:
+    enabled: true
+    config:
+      # Custom config for heatmap plugin
+      default_days: 7
+
+# Global plugin settings
+settings:
+  # Enable hot reload - plugins auto-reload on file changes
+  hot_reload: true
+  
+  # Hot reload check interval in seconds
+  reload_check_interval: 3.0
+  
+  # Additional plugin directories (comma-separated paths)
+  # additional_dirs: /path/to/plugins,/another/path

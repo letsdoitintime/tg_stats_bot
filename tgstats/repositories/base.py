@@ -1,6 +1,6 @@
 """Base repository with common database operations."""
 
-from typing import Generic, TypeVar, Type, Optional, List
+from typing import Generic, TypeVar, Type, Optional, List, Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,10 +23,22 @@ class BaseRepository(Generic[ModelType]):
         self.model = model
         self.session = session
     
-    async def get_by_id(self, id_value: int) -> Optional[ModelType]:
-        """Get a single record by ID."""
+    async def get_by_pk(self, **pk_values: Any) -> Optional[ModelType]:
+        """
+        Get a single record by primary key(s).
+        
+        Args:
+            **pk_values: Primary key column(s) and their values
+            
+        Returns:
+            Model instance or None
+            
+        Example:
+            await repo.get_by_pk(chat_id=123, msg_id=456)
+        """
+        conditions = [getattr(self.model, key) == value for key, value in pk_values.items()]
         result = await self.session.execute(
-            select(self.model).where(self.model.id == id_value)
+            select(self.model).where(*conditions)
         )
         return result.scalar_one_or_none()
     
@@ -55,11 +67,3 @@ class BaseRepository(Generic[ModelType]):
         """Delete a record."""
         await self.session.delete(instance)
         await self.session.flush()
-    
-    async def commit(self) -> None:
-        """Commit the transaction."""
-        await self.session.commit()
-    
-    async def rollback(self) -> None:
-        """Rollback the transaction."""
-        await self.session.rollback()

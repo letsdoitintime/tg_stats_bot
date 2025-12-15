@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 import emoji
 from telegram import Message
 
-from .enums import MediaType
+from ..enums import MediaType
 
 # URL regex pattern
 URL_PATTERN = re.compile(

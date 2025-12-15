@@ -1,10 +1,11 @@
 """FastAPI application for webhook endpoint and analytics API."""
 
-import logging
 from datetime import datetime, timedelta, date
 from typing import Dict, Any, List, Optional, Tuple
 from zoneinfo import ZoneInfo
+import uuid
 
+import structlog
 from fastapi import FastAPI, Request, HTTPException, Depends, Query, Header
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -25,7 +26,7 @@ from ..celery_tasks import retention_preview
 from .health import router as health_router
 from .auth import verify_api_token
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Global variable to store the bot application
 bot_app: Application = None
@@ -67,6 +68,19 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+
+# Request ID tracing middleware
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    """Add unique request ID for tracing."""
+    request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    request.state.request_id = request_id
+    
+    # Bind request ID to logger context
+    with structlog.contextvars.bound_contextvars(request_id=request_id):
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
 
 # Request size limit middleware
 @app.middleware("http")

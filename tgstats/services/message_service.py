@@ -1,29 +1,50 @@
 """Message processing service."""
 
-import structlog
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Message as TelegramMessage
 
 from ..models import Message
-from ..repositories.message_repository import MessageRepository
-from ..features import extract_message_features, get_media_type_from_message
-from .chat_service import ChatService
-from .user_service import UserService
+from ..utils.features import extract_message_features, get_media_type_from_message
+from .base import BaseService
 
-logger = structlog.get_logger(__name__)
+if TYPE_CHECKING:
+    from ..repositories.factory import RepositoryFactory
+    from .chat_service import ChatService
+    from .user_service import UserService
 
 
-class MessageService:
+class MessageService(BaseService):
     """Service for message-related operations."""
     
-    def __init__(self, session: AsyncSession):
-        """Initialize message service with database session."""
-        self.session = session
-        self.message_repo = MessageRepository(session)
-        self.chat_service = ChatService(session)
-        self.user_service = UserService(session)
+    def __init__(
+        self, 
+        session: AsyncSession,
+        repo_factory: "RepositoryFactory" = None,
+        chat_service: "ChatService" = None,
+        user_service: "UserService" = None
+    ):
+        """Initialize message service with database session and optional dependencies."""
+        super().__init__(session, repo_factory)
+        self._chat_service = chat_service
+        self._user_service = user_service
+    
+    @property
+    def chat_service(self) -> "ChatService":
+        """Lazy-load chat service."""
+        if self._chat_service is None:
+            from .chat_service import ChatService
+            self._chat_service = ChatService(self.session, self.repos)
+        return self._chat_service
+    
+    @property
+    def user_service(self) -> "UserService":
+        """Lazy-load user service."""
+        if self._user_service is None:
+            from .user_service import UserService
+            self._user_service = UserService(self.session, self.repos)
+        return self._user_service
     
     async def process_message(self, tg_message: TelegramMessage) -> Optional[Message]:
         """
@@ -36,7 +57,7 @@ class MessageService:
             Message model instance or None if user info missing
         """
         if not tg_message.from_user:
-            logger.warning("Message without user info, skipping")
+            self.logger.warning("Message without user info, skipping")
             return None
         
         # Upsert chat and user
@@ -79,7 +100,9 @@ class MessageService:
             ]
         
         # Create message record
-        message = await self.message_repo.create_from_telegram(
+        from ..repositories.message_repository import MessageRepository
+        message_repo = MessageRepository(self.session)
+        message = await message_repo.create_from_telegram(
             tg_message,
             text_raw,
             text_len,
@@ -90,9 +113,9 @@ class MessageService:
             entities_json
         )
         
-        await self.session.commit()
+        await self.commit()
         
-        logger.info(
+        self.logger.info(
             "Message processed",
             chat_id=tg_message.chat.id,
             user_id=tg_message.from_user.id,

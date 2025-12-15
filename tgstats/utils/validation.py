@@ -4,10 +4,7 @@ import re
 from typing import Any, Optional
 from datetime import datetime
 
-
-class ValidationError(Exception):
-    """Custom validation error with user-friendly messages."""
-    pass
+from ..core.exceptions import ValidationError
 
 
 def validate_chat_id(chat_id: Any) -> int:

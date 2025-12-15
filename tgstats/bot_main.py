@@ -66,6 +66,7 @@ from .handlers.members import (
     handle_left_chat_member,
     handle_chat_member_updated,
 )
+from .plugins import PluginManager
 
 # Configure logging
 setup_logging(
@@ -83,6 +84,9 @@ configure_third_party_logging(
 )
 
 logger = structlog.get_logger(__name__)
+
+# Global plugin manager
+plugin_manager = PluginManager()
 
 
 async def run_migrations():
@@ -196,6 +200,40 @@ def create_application() -> Application:
     return application
 
 
+async def setup_plugins(application: Application) -> None:
+    """Load and initialize all plugins."""
+    global plugin_manager
+    
+    # Skip if plugins are disabled
+    if not settings.enable_plugins:
+        logger.info("Plugins disabled in configuration")
+        return
+    
+    try:
+        logger.info("Loading plugins...")
+        await plugin_manager.load_plugins()
+        
+        logger.info("Initializing plugins...")
+        await plugin_manager.initialize_plugins(application)
+        
+        logger.info("Registering command plugins...")
+        plugin_manager.register_command_plugins(application)
+        
+        # Start hot reload monitoring
+        await plugin_manager.start_hot_reload(application)
+        
+        # Log loaded plugins
+        plugins = plugin_manager.list_plugins()
+        logger.info(
+            "plugins_loaded",
+            count=len(plugins),
+            plugins=list(plugins.keys())
+        )
+        
+    except Exception as e:
+        logger.error("Failed to setup plugins", error=str(e), exc_info=True)
+
+
 async def run_polling_mode(application: Application) -> None:
     """Run the bot in polling mode with graceful shutdown."""
     logger.info("Starting bot in polling mode...")
@@ -203,6 +241,10 @@ async def run_polling_mode(application: Application) -> None:
     # Initialize the application
     await application.initialize()
     await application.start()
+    
+    # Setup plugins
+    await setup_plugins(application)
+    
     await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
     
     logger.info("Bot is running in polling mode. Press Ctrl+C to stop.")
@@ -226,6 +268,12 @@ async def run_polling_mode(application: Application) -> None:
     finally:
         logger.info("Shutting down bot...")
         try:
+            # Stop hot reload first
+            await plugin_manager.stop_hot_reload()
+            
+            # Shutdown plugins
+            await plugin_manager.shutdown_plugins()
+            
             await application.updater.stop()
             await application.stop()
             await application.shutdown()
@@ -245,6 +293,9 @@ async def run_webhook_mode(application: Application) -> None:
     # Initialize the application
     await application.initialize()
     await application.start()
+    
+    # Setup plugins
+    await setup_plugins(application)
     
     # Set webhook
     await application.bot.set_webhook(
@@ -275,6 +326,8 @@ async def run_webhook_mode(application: Application) -> None:
     try:
         await server.serve()
     finally:
+        await plugin_manager.stop_hot_reload()
+        await plugin_manager.shutdown_plugins()
         await application.stop()
         await application.shutdown()
 

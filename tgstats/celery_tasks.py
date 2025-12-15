@@ -1,15 +1,15 @@
 """Celery configuration and tasks for background processing."""
 
-import logging
 import random
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
+import structlog
 from celery import Celery
 from celery.schedules import crontab
 from sqlalchemy import text
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Import after logger setup to avoid circular imports
 try:

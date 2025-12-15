@@ -21,6 +21,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 from .enums import ChatType, MembershipStatus, MediaType
 
+# Helper function for timezone-aware datetime columns
+def datetime_column(nullable: bool = False, **kwargs) -> Mapped[datetime]:
+    """Create timezone-aware datetime column."""
+    return mapped_column(DateTime(timezone=True), nullable=nullable, **kwargs)
+
 
 class Chat(Base):
     """Telegram chat information."""

@@ -1,7 +1,8 @@
 """Configuration settings using pydantic-settings."""
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
+from typing import Any
 
 
 class Settings(BaseSettings):
@@ -65,6 +66,69 @@ class Settings(BaseSettings):
     # Celery settings
     celery_task_max_retries: int = Field(default=3, env="CELERY_TASK_MAX_RETRIES")
     celery_task_retry_delay: int = Field(default=60, env="CELERY_TASK_RETRY_DELAY")
+    
+    # Plugin settings
+    enable_plugins: bool = Field(default=True, env="ENABLE_PLUGINS")
+    plugin_directories: str = Field(default="", env="PLUGIN_DIRECTORIES")  # Comma-separated paths
+    
+    @field_validator('mode')
+    @classmethod
+    def validate_mode(cls, v: str) -> str:
+        """Validate mode is either polling or webhook."""
+        if v not in ['polling', 'webhook']:
+            raise ValueError('mode must be either "polling" or "webhook"')
+        return v
+    
+    @field_validator('log_level', 'telegram_log_level', 'httpx_log_level', 'uvicorn_log_level')
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        """Validate log level."""
+        valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        v_upper = v.upper()
+        if v_upper not in valid_levels:
+            raise ValueError(f'log_level must be one of {valid_levels}')
+        return v_upper
+    
+    @field_validator('log_format')
+    @classmethod
+    def validate_log_format(cls, v: str) -> str:
+        """Validate log format."""
+        if v not in ['json', 'text']:
+            raise ValueError('log_format must be either "json" or "text"')
+        return v
+    
+    @field_validator('environment')
+    @classmethod
+    def validate_environment(cls, v: str) -> str:
+        """Validate environment."""
+        valid_envs = ['development', 'staging', 'production', 'test']
+        if v not in valid_envs:
+            raise ValueError(f'environment must be one of {valid_envs}')
+        return v
+    
+    @field_validator('db_pool_size', 'db_max_overflow', 'bot_connection_pool_size')
+    @classmethod
+    def validate_positive_int(cls, v: int) -> int:
+        """Validate positive integers."""
+        if v <= 0:
+            raise ValueError('Value must be positive')
+        return v
+    
+    @model_validator(mode='after')
+    def validate_webhook_config(self) -> 'Settings':
+        """Validate webhook configuration."""
+        if self.mode == 'webhook' and not self.webhook_url:
+            raise ValueError('webhook_url is required when mode is "webhook"')
+        return self
+    
+    @model_validator(mode='after')
+    def validate_pool_sizes(self) -> 'Settings':
+        """Validate database pool configuration."""
+        if self.db_pool_size > 50:
+            raise ValueError('db_pool_size should not exceed 50')
+        if self.db_max_overflow > 100:
+            raise ValueError('db_max_overflow should not exceed 100')
+        return self
     
     class Config:
         env_file = ".env"
