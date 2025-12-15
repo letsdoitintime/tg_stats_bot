@@ -4,7 +4,6 @@ import functools
 import structlog
 from typing import Callable, Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -66,10 +65,10 @@ def log_handler_call(func: Callable) -> Callable:
     """Decorator that logs handler entry and exit."""
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
-        logger.debug(f"Handler started", handler=func.__name__)
+        logger.debug("Handler started", handler=func.__name__)
         try:
             result = await func(*args, **kwargs)
-            logger.debug(f"Handler completed", handler=func.__name__)
+            logger.debug("Handler completed", handler=func.__name__)
             return result
         except Exception as e:
             logger.error(

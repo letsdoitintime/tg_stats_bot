@@ -1,7 +1,6 @@
 """Message handlers for the Telegram bot."""
 
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Update
 from telegram.ext import ContextTypes
 

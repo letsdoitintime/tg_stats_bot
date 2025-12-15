@@ -20,7 +20,6 @@ from .base import (
     StatisticsPlugin,
     ServicePlugin,
 )
-from ..core.config import settings
 
 
 logger = structlog.get_logger(__name__)

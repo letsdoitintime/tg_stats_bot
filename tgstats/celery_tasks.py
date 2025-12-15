@@ -151,7 +151,7 @@ def refresh_materialized_view(self, view_name: str) -> Dict[str, Any]:
             }
             
             logger.info(
-                f"Materialized view refresh completed",
+                "Materialized view refresh completed",
                 extra=result
             )
             

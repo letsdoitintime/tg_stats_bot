@@ -28,16 +28,11 @@ docker-compose up --build
 """
 
 import asyncio
-import logging
 import signal
 import sys
 import traceback
-from typing import NoReturn
 
 import structlog
-from alembic import command
-from alembic.config import Config
-from sqlalchemy import text
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -50,7 +45,7 @@ from telegram.ext import (
 from telegram.request import HTTPXRequest
 
 from .config import settings
-from .db import async_session, get_sync_engine
+from .core.config_validator import validate_config
 from .utils.logging import setup_logging, configure_third_party_logging
 from .handlers.commands import (
     setup_command,
@@ -84,6 +79,14 @@ configure_third_party_logging(
 )
 
 logger = structlog.get_logger(__name__)
+
+# Validate configuration at startup
+try:
+    validate_config(settings)
+    logger.info("Configuration validated successfully")
+except ValueError as e:
+    logger.error("Configuration validation failed", error=str(e))
+    sys.exit(1)
 
 # Global plugin manager
 plugin_manager = PluginManager()

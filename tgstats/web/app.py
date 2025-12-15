@@ -1,30 +1,29 @@
 """FastAPI application for webhook endpoint and analytics API."""
 
-from datetime import datetime, timedelta, date
-from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 import uuid
 
 import structlog
 from fastapi import FastAPI, Request, HTTPException, Depends, Query, Header
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
-from sqlalchemy import text, func, and_, or_
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from telegram import Update
 from telegram.ext import Application
 
 from ..config import settings
 from ..db import get_session
-from ..models import Chat, User, Membership, Message, GroupSettings, Reaction
+from ..models import Chat, GroupSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..celery_tasks import retention_preview
 from .health import router as health_router
-from .auth import verify_api_token
+from .error_handlers import register_error_handlers
 
 logger = structlog.get_logger(__name__)
 
@@ -97,6 +96,9 @@ async def limit_request_size(request: Request, call_next):
 
 # Include health check router
 app.include_router(health_router)
+
+# Register error handlers
+register_error_handlers(app)
 
 # Templates for minimal UI
 templates = Jinja2Templates(directory="tgstats/web/templates")

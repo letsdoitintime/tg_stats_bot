@@ -1,7 +1,7 @@
 """Input validation utilities with detailed error messages."""
 
 import re
-from typing import Any, Optional
+from typing import Any
 from datetime import datetime
 
 from ..core.exceptions import ValidationError

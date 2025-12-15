@@ -5,9 +5,8 @@ import sys
 import os
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from typing import Optional
 import structlog
-from structlog.types import EventDict, Processor
+from structlog.types import EventDict
 
 
 class ColoredConsoleRenderer:
@@ -105,19 +104,6 @@ def setup_logging(
             add_app_context,
             ColoredConsoleRenderer(),
         ]
-        
-        file_processors = [
-            structlog.stdlib.filter_by_level,
-            structlog.stdlib.add_logger_name,
-            structlog.stdlib.add_log_level,
-            structlog.stdlib.PositionalArgumentsFormatter(),
-            structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S"),
-            structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc_info,
-            structlog.processors.UnicodeDecoder(),
-            add_app_context,
-            structlog.processors.KeyValueRenderer(key_order=["timestamp", "level", "logger", "event"]),
-        ]
     else:
         # JSON format for both console and file
         common_processors = [
@@ -133,7 +119,6 @@ def setup_logging(
         ]
         
         console_processors = common_processors + [structlog.processors.JSONRenderer()]
-        file_processors = common_processors + [structlog.processors.JSONRenderer()]
     
     # Configure structlog
     structlog.configure(
