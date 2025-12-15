@@ -5,9 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..db import async_session
 from ..services.chat_service import ChatService
-from ..utils.decorators import group_only, require_admin
+from ..utils.decorators import group_only, require_admin, with_db_session
 from ..utils.validators import parse_boolean_argument
 from ..utils.rate_limiter import rate_limiter
 from ..utils.sanitizer import sanitize_command_arg, sanitize_text
@@ -19,7 +18,8 @@ logger = structlog.get_logger(__name__)
 
 
 @track_time("setup_command")
-async def setup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@with_db_session
+async def setup_command(update: Update, context: ContextTypes.DEFAULT_TYPE, session: AsyncSession) -> None:
     """Setup command to initialize chat and create default settings."""
     if not update.effective_chat or not update.message or not update.effective_user:
         return
@@ -47,15 +47,13 @@ async def setup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
         return
     
-    async with async_session() as session:
-        try:
-            service = ChatService(session)
-            
-            # Create chat and setup settings
-            await service.get_or_create_chat(chat)
-            settings = await service.setup_chat(chat.id)
-            
-            settings_text = f"""
+    service = ChatService(session)
+    
+    # Create chat and setup settings
+    await service.get_or_create_chat(chat)
+    settings = await service.setup_chat(chat.id)
+    
+    settings_text = f"""
 📊 **Group Analytics Setup Complete!**
 
 **Current Settings:**
@@ -72,31 +70,20 @@ async def setup_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 • `/set_reactions on|off` - Toggle reaction capture (admin only)
 
 The bot is now tracking message analytics for this group!
-            """.strip()
-            
-            await update.message.reply_text(settings_text, parse_mode="Markdown")
-            
-            logger.info(
-                "Group setup completed",
-                chat_id=chat.id,
-                chat_title=chat.title,
-                user_id=update.effective_user.id if update.effective_user else None
-            )
-            
-        except Exception as e:
-            logger.error(
-                "Error in setup command",
-                chat_id=chat.id,
-                error=str(e),
-                exc_info=True
-            )
-            await update.message.reply_text(
-                "❌ An error occurred during setup. Please try again."
-            )
-            await session.rollback()
+    """.strip()
+    
+    await update.message.reply_text(settings_text, parse_mode="Markdown")
+    
+    logger.info(
+        "Group setup completed",
+        chat_id=chat.id,
+        chat_title=chat.title,
+        user_id=update.effective_user.id if update.effective_user else None
+    )
 
 
-async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@with_db_session
+async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE, session: AsyncSession) -> None:
     """Show current group settings."""
     if not update.effective_chat or not update.message:
         return
@@ -110,18 +97,16 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
     
-    async with async_session() as session:
-        try:
-            service = ChatService(session)
-            settings = await service.get_chat_settings(chat.id)
-            
-            if not settings:
-                await update.message.reply_text(
-                    "❌ Group not set up yet. Use /setup to initialize analytics."
-                )
-                return
-            
-            settings_text = f"""
+    service = ChatService(session)
+    settings = await service.get_chat_settings(chat.id)
+    
+    if not settings:
+        await update.message.reply_text(
+            "❌ Group not set up yet. Use /setup to initialize analytics."
+        )
+        return
+    
+    settings_text = f"""
 📊 **Current Group Settings**
 
 • Store Text: {'✅ Enabled' if settings.store_text else '❌ Disabled'}
@@ -134,23 +119,13 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 **Commands:**
 • `/set_text on|off` - Toggle text storage (admin only)
 • `/set_reactions on|off` - Toggle reaction capture (admin only)
-            """.strip()
-            
-            await update.message.reply_text(settings_text, parse_mode="Markdown")
-            
-        except Exception as e:
-            logger.error(
-                "Error in settings command",
-                chat_id=chat.id,
-                error=str(e),
-                exc_info=True
-            )
-            await update.message.reply_text(
-                "❌ An error occurred while fetching settings."
-            )
+    """.strip()
+    
+    await update.message.reply_text(settings_text, parse_mode="Markdown")
 
 
-async def set_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@with_db_session
+async def set_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE, session: AsyncSession) -> None:
     """Set text storage setting for the group."""
     if not update.message or not update.message.chat or not update.effective_user:
         return
@@ -180,38 +155,25 @@ async def set_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
     
-    async with async_session() as session:
-        try:
-            service = ChatService(session)
-            settings = await service.update_text_storage(chat.id, store_text)
-            
-            if not settings:
-                await update.message.reply_text(
-                    "❌ Please run `/setup` first to initialize group settings.",
-                    parse_mode="Markdown"
-                )
-                return
-            
-            status = "✅ Enabled" if store_text else "❌ Disabled"
-            await update.message.reply_text(
-                f"📝 Text storage has been **{status}**",
-                parse_mode="Markdown"
-            )
-            
-        except Exception as e:
-            logger.error(
-                "Error in set_text command",
-                chat_id=chat.id,
-                error=str(e),
-                exc_info=True
-            )
-            await update.message.reply_text(
-                "❌ An error occurred while updating settings."
-            )
-            await session.rollback()
+    service = ChatService(session)
+    settings = await service.update_text_storage(chat.id, store_text)
+    
+    if not settings:
+        await update.message.reply_text(
+            "❌ Please run `/setup` first to initialize group settings.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    status = "✅ Enabled" if store_text else "❌ Disabled"
+    await update.message.reply_text(
+        f"📝 Text storage has been **{status}**",
+        parse_mode="Markdown"
+    )
 
 
-async def set_reactions_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@with_db_session
+async def set_reactions_command(update: Update, context: ContextTypes.DEFAULT_TYPE, session: AsyncSession) -> None:
     """Set reaction capture setting for the group."""
     if not update.message or not update.message.chat or not update.effective_user:
         return
@@ -241,35 +203,21 @@ async def set_reactions_command(update: Update, context: ContextTypes.DEFAULT_TY
         )
         return
     
-    async with async_session() as session:
-        try:
-            service = ChatService(session)
-            settings = await service.update_reaction_capture(chat.id, capture_reactions)
-            
-            if not settings:
-                await update.message.reply_text(
-                    "❌ Please run `/setup` first to initialize group settings.",
-                    parse_mode="Markdown"
-                )
-                return
-            
-            status = "✅ Enabled" if capture_reactions else "❌ Disabled"
-            await update.message.reply_text(
-                f"🎭 Reaction capture has been **{status}**",
-                parse_mode="Markdown"
-            )
-            
-        except Exception as e:
-            logger.error(
-                "Error in set_reactions command",
-                chat_id=chat.id,
-                error=str(e),
-                exc_info=True
-            )
-            await update.message.reply_text(
-                "❌ An error occurred while updating settings."
-            )
-            await session.rollback()
+    service = ChatService(session)
+    settings = await service.update_reaction_capture(chat.id, capture_reactions)
+    
+    if not settings:
+        await update.message.reply_text(
+            "❌ Please run `/setup` first to initialize group settings.",
+            parse_mode="Markdown"
+        )
+        return
+    
+    status = "✅ Enabled" if capture_reactions else "❌ Disabled"
+    await update.message.reply_text(
+        f"🎭 Reaction capture has been **{status}**",
+        parse_mode="Markdown"
+    )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

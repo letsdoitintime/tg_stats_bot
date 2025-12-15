@@ -1,33 +1,33 @@
 """User management service."""
 
 import structlog
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import User as TelegramUser
 
 from ..models import User, Membership
-from ..repositories.user_repository import UserRepository
-from ..repositories.membership_repository import MembershipRepository
 from ..enums import MembershipStatus
+from .base import BaseService
+
+if TYPE_CHECKING:
+    from ..repositories.factory import RepositoryFactory
 
 logger = structlog.get_logger(__name__)
 
 
-class UserService:
+class UserService(BaseService):
     """Service for user-related operations."""
     
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, repo_factory: "RepositoryFactory" = None):
         """Initialize user service with database session."""
-        self.session = session
-        self.user_repo = UserRepository(session)
-        self.membership_repo = MembershipRepository(session)
+        super().__init__(session, repo_factory)
     
     async def get_or_create_user(self, tg_user: TelegramUser) -> User:
         """Get or create a user from Telegram user object."""
-        user = await self.user_repo.upsert_from_telegram(tg_user)
-        logger.info(
+        user = await self.repos.user.upsert_from_telegram(tg_user)
+        self.logger.info(
             "User upserted",
             user_id=user.user_id,
             username=user.username
@@ -42,7 +42,7 @@ class UserService:
         status: MembershipStatus = MembershipStatus.MEMBER
     ) -> Membership:
         """Ensure a membership exists for a user in a chat."""
-        membership = await self.membership_repo.ensure_membership(
+        membership = await self.repos.membership.ensure_membership(
             chat_id, user_id, joined_at, status
         )
         return membership
@@ -54,24 +54,24 @@ class UserService:
         joined_at: datetime
     ) -> Membership:
         """Handle user joining a chat."""
-        existing = await self.membership_repo.get_by_chat_and_user(chat_id, user_id)
+        existing = await self.repos.membership.get_by_chat_and_user(chat_id, user_id)
         
         if existing and existing.left_at:
             # User is rejoining
-            membership = await self.membership_repo.update_join_status(
+            membership = await self.repos.membership.update_join_status(
                 chat_id, user_id, joined_at
             )
-            logger.info(
+            self.logger.info(
                 "User rejoined",
                 chat_id=chat_id,
                 user_id=user_id
             )
         else:
             # New membership
-            membership = await self.membership_repo.ensure_membership(
+            membership = await self.repos.membership.ensure_membership(
                 chat_id, user_id, joined_at
             )
-            logger.info(
+            self.logger.info(
                 "User joined",
                 chat_id=chat_id,
                 user_id=user_id
@@ -87,11 +87,11 @@ class UserService:
         left_at: datetime
     ) -> Membership:
         """Handle user leaving a chat."""
-        membership = await self.membership_repo.update_leave_status(
+        membership = await self.repos.membership.update_leave_status(
             chat_id, user_id, left_at
         )
-        await self.session.commit()
-        logger.info(
+        await self.commit()
+        self.logger.info(
             "User left",
             chat_id=chat_id,
             user_id=user_id

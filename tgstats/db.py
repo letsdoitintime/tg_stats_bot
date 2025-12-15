@@ -1,6 +1,7 @@
 """Database configuration and session management."""
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
@@ -9,9 +10,16 @@ from .config import settings
 # Create the declarative base
 Base = declarative_base()
 
+# Parse and convert database URL for async driver
+db_url = make_url(settings.database_url)
+if db_url.drivername == "postgresql+psycopg":
+    async_db_url = db_url.set(drivername="postgresql+asyncpg")
+else:
+    async_db_url = db_url
+
 # Create async engine with optimized connection pooling
 engine = create_async_engine(
-    settings.database_url.replace("postgresql+psycopg://", "postgresql+asyncpg://"),
+    async_db_url,
     echo=False,
     pool_pre_ping=True,
     pool_size=settings.db_pool_size,

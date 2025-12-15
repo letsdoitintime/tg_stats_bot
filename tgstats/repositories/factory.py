@@ -2,7 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .chat_repository import ChatRepository
+from .chat_repository import ChatRepository, GroupSettingsRepository
 from .user_repository import UserRepository
 from .message_repository import MessageRepository
 from .membership_repository import MembershipRepository
@@ -21,6 +21,7 @@ class RepositoryFactory:
         """
         self.session = session
         self._chat_repo = None
+        self._settings_repo = None
         self._user_repo = None
         self._message_repo = None
         self._membership_repo = None
@@ -32,6 +33,13 @@ class RepositoryFactory:
         if self._chat_repo is None:
             self._chat_repo = ChatRepository(self.session)
         return self._chat_repo
+    
+    @property
+    def settings(self) -> GroupSettingsRepository:
+        """Get or create group settings repository."""
+        if self._settings_repo is None:
+            self._settings_repo = GroupSettingsRepository(self.session)
+        return self._settings_repo
     
     @property
     def user(self) -> UserRepository:

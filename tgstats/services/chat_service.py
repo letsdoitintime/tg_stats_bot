@@ -22,17 +22,13 @@ class ChatService(BaseService):
     
     async def get_or_create_chat(self, tg_chat: TelegramChat) -> Chat:
         """Get or create a chat from Telegram chat object."""
-        from ..repositories.chat_repository import ChatRepository
-        chat_repo = ChatRepository(self.session)
-        chat = await chat_repo.upsert_from_telegram(tg_chat)
+        chat = await self.repos.chat.upsert_from_telegram(tg_chat)
         self.logger.info("Chat upserted", chat_id=chat.chat_id, title=chat.title)
         return chat
     
     async def get_chat_settings(self, chat_id: int) -> Optional[GroupSettings]:
         """Get settings for a chat."""
-        from ..repositories.chat_repository import GroupSettingsRepository
-        settings_repo = GroupSettingsRepository(self.session)
-        return await settings_repo.get_by_chat_id(chat_id)
+        return await self.repos.settings.get_by_chat_id(chat_id)
     
     async def get_chat_settings_or_raise(self, chat_id: int) -> GroupSettings:
         """Get settings for a chat or raise exception if not found."""
@@ -43,9 +39,7 @@ class ChatService(BaseService):
     
     async def setup_chat(self, chat_id: int) -> GroupSettings:
         """Set up a chat with default settings."""
-        from ..repositories.chat_repository import GroupSettingsRepository
-        settings_repo = GroupSettingsRepository(self.session)
-        settings = await settings_repo.create_default(chat_id)
+        settings = await self.repos.settings.create_default(chat_id)
         await self.commit()
         self.logger.info("Chat setup completed", chat_id=chat_id)
         return settings
@@ -54,9 +48,7 @@ class ChatService(BaseService):
         self, chat_id: int, store_text: bool
     ) -> Optional[GroupSettings]:
         """Update text storage setting for a chat."""
-        from ..repositories.chat_repository import GroupSettingsRepository
-        settings_repo = GroupSettingsRepository(self.session)
-        settings = await settings_repo.update_setting(
+        settings = await self.repos.settings.update_setting(
             chat_id, "store_text", store_text
         )
         if settings:
@@ -72,9 +64,7 @@ class ChatService(BaseService):
         self, chat_id: int, capture_reactions: bool
     ) -> Optional[GroupSettings]:
         """Update reaction capture setting for a chat."""
-        from ..repositories.chat_repository import GroupSettingsRepository
-        settings_repo = GroupSettingsRepository(self.session)
-        settings = await settings_repo.update_setting(
+        settings = await self.repos.settings.update_setting(
             chat_id, "capture_reactions", capture_reactions
         )
         if settings:

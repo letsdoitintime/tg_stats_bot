@@ -17,13 +17,23 @@ logger = structlog.get_logger(__name__)
 def with_db_session(func: Callable) -> Callable:
     """
     Decorator that provides a database session to handler functions.
-    Automatically handles commit/rollback and error logging.
+    Automatically handles commit on success, rollback on error, and error logging.
+    
+    Usage:
+        @with_db_session
+        async def my_handler(update, context, session):
+            # Use session here
+            # Commit happens automatically on success
+            # Rollback happens automatically on error
     """
     @functools.wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs) -> Any:
         async with async_session() as session:
             try:
                 result = await func(update, context, session, *args, **kwargs)
+                # Auto-commit on success
+                await session.commit()
+                logger.debug("Transaction committed", handler=func.__name__)
                 return result
             except TgStatsError as e:
                 await session.rollback()

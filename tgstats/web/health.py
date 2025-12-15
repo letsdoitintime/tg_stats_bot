@@ -52,6 +52,33 @@ async def check_celery() -> dict:
         return {"available": False, "worker_count": 0, "error": str(e)}
 
 
+async def check_telegram_api() -> dict:
+    """Check Telegram Bot API connectivity."""
+    try:
+        from ..web.app import get_bot_application
+        app = get_bot_application()
+        
+        if app and app.bot:
+            # Try to get bot info with timeout
+            bot_info = await asyncio.wait_for(
+                app.bot.get_me(),
+                timeout=3.0
+            )
+            return {
+                "available": True,
+                "bot_username": bot_info.username,
+                "bot_id": bot_info.id
+            }
+        else:
+            return {"available": False, "error": "bot_not_initialized"}
+    except asyncio.TimeoutError:
+        logger.warning("telegram_api_check_timeout")
+        return {"available": False, "error": "timeout"}
+    except Exception as e:
+        logger.error("telegram_api_check_failed", error=str(e))
+        return {"available": False, "error": str(e)}
+
+
 @router.get("/health")
 async def health_check():
     """Basic health check endpoint."""
@@ -85,6 +112,7 @@ async def readiness_probe(response: Response):
         "database": False,
         "redis": False,
         "celery": {},
+        "telegram_api": {},
         "overall": False
     }
     
@@ -104,8 +132,11 @@ async def readiness_probe(response: Response):
     # Check Celery (optional - don't fail if workers not running)
     checks["celery"] = await check_celery()
     
-    # Overall status (Redis/Celery are optional)
-    checks["overall"] = checks["database"]
+    # Check Telegram API
+    checks["telegram_api"] = await check_telegram_api()
+    
+    # Overall status (database and telegram_api are critical)
+    checks["overall"] = checks["database"] and checks["telegram_api"].get("available", False)
     
     if checks["overall"]:
         return {"status": "ready", "checks": checks}

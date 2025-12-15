@@ -100,9 +100,7 @@ class MessageService(BaseService):
             ]
         
         # Create message record
-        from ..repositories.message_repository import MessageRepository
-        message_repo = MessageRepository(self.session)
-        message = await message_repo.create_from_telegram(
+        message = await self.repos.message.create_from_telegram(
             tg_message,
             text_raw,
             text_len,
