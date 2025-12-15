@@ -98,7 +98,7 @@ class TestSecurityUtils:
 
     def test_validate_safe_string_xss(self):
         """Test validation rejects XSS."""
-        malicious = "<script>alert('xss')</script>"
+        malicious = "javascript:void(0)"
         with pytest.raises(InvalidInputError, match="XSS"):
             SecurityUtils.validate_safe_string(malicious)
 
