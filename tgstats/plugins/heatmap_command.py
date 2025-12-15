@@ -9,10 +9,10 @@ import asyncio
 
 from telegram import Update
 from telegram.ext import Application, ContextTypes
-from telegram.error import RetryAfter, TimedOut, NetworkError
 
 from .base import CommandPlugin, PluginMetadata
 from ..utils.decorators import with_db_session, group_only
+from ..utils.telegram_helpers import send_message_with_retry
 from ..services.heatmap_service import HeatmapService
 
 
@@ -23,7 +23,7 @@ class HeatmapCommandPlugin(CommandPlugin):
     def metadata(self) -> PluginMetadata:
         return PluginMetadata(
             name="heatmap_command",
-            version="1.0.0",
+            version="2.0.0",
             description="Provides /heatmap command for activity visualization",
             author="TgStats Team",
             dependencies=[]
@@ -32,77 +32,6 @@ class HeatmapCommandPlugin(CommandPlugin):
     async def initialize(self, app: Application) -> None:
         """Initialize the plugin."""
         self._logger.info("heatmap_command_plugin_initialized")
-    
-    async def _send_message_with_retry(
-        self,
-        update: Update,
-        text: str,
-        max_retries: int = 3,
-        delay_between_messages: float = 1.0,
-        **kwargs
-    ) -> bool:
-        """
-        Send a message with automatic retry on flood control errors.
-        
-        Args:
-            update: Telegram update object
-            text: Message text to send
-            max_retries: Maximum number of retry attempts
-            delay_between_messages: Delay in seconds before sending (prevents flooding)
-            **kwargs: Additional arguments for reply_text
-            
-        Returns:
-            True if message sent successfully, False otherwise
-        """
-        # Add delay before sending to prevent flooding
-        if delay_between_messages > 0:
-            await asyncio.sleep(delay_between_messages)
-        
-        for attempt in range(max_retries):
-            try:
-                await update.message.reply_text(text, **kwargs)
-                return True
-            except RetryAfter as e:
-                retry_after = e.retry_after
-                self._logger.warning(
-                    "flood_control_hit",
-                    chat_id=update.effective_chat.id if update.effective_chat else None,
-                    retry_after=retry_after,
-                    attempt=attempt + 1,
-                    max_retries=max_retries
-                )
-                
-                if attempt < max_retries - 1:
-                    # Wait for the specified time plus a small buffer
-                    await asyncio.sleep(retry_after + 1)
-                else:
-                    self._logger.error(
-                        "flood_control_max_retries",
-                        chat_id=update.effective_chat.id if update.effective_chat else None
-                    )
-                    return False
-            except (TimedOut, NetworkError) as e:
-                self._logger.warning(
-                    "network_error_retry",
-                    error=str(e),
-                    attempt=attempt + 1,
-                    max_retries=max_retries
-                )
-                
-                if attempt < max_retries - 1:
-                    # Exponential backoff: 2^attempt seconds
-                    await asyncio.sleep(2 ** attempt)
-                else:
-                    return False
-            except Exception as e:
-                self._logger.error(
-                    "message_send_error",
-                    error=str(e),
-                    exc_info=True
-                )
-                return False
-        
-        return False
     
     async def shutdown(self) -> None:
         """Shutdown the plugin."""
@@ -135,10 +64,10 @@ class HeatmapCommandPlugin(CommandPlugin):
         chat = update.effective_chat
         
         # Initial status message
-        await self._send_message_with_retry(
+        await send_message_with_retry(
             update, 
             "🔄 Analyzing activity patterns...",
-            delay_between_messages=0
+            delay_before_send=0
         )
         
         try:
@@ -164,10 +93,10 @@ class HeatmapCommandPlugin(CommandPlugin):
             )
             
             if not data:
-                await self._send_message_with_retry(
+                await send_message_with_retry(
                     update,
                     "📊 No messages found in the last 7 days.",
-                    delay_between_messages=0.5
+                    delay_before_send=0.5
                 )
                 return
             
@@ -175,11 +104,11 @@ class HeatmapCommandPlugin(CommandPlugin):
             heatmap_text = heatmap_service.format_heatmap(data)
             
             # Send with delay to prevent flooding
-            await self._send_message_with_retry(
+            await send_message_with_retry(
                 update,
                 heatmap_text,
                 parse_mode="Markdown",
-                delay_between_messages=0.5
+                delay_before_send=0.5
             )
             
         except Exception as e:
@@ -190,10 +119,10 @@ class HeatmapCommandPlugin(CommandPlugin):
                 exc_info=True
             )
             # Try to send error message with delay
-            await self._send_message_with_retry(
+            await send_message_with_retry(
                 update,
                 "❌ An error occurred while generating the heatmap.",
-                delay_between_messages=0.5
+                delay_before_send=0.5
             )
     
     @with_db_session
@@ -225,10 +154,10 @@ class HeatmapCommandPlugin(CommandPlugin):
             
             # Check if we have data
             if not top_hour or not top_dow:
-                await self._send_message_with_retry(
+                await send_message_with_retry(
                     update,
                     "📊 No messages found in the last 30 days.",
-                    delay_between_messages=0.5
+                    delay_before_send=0.5
                 )
                 return
             
@@ -244,11 +173,11 @@ class HeatmapCommandPlugin(CommandPlugin):
 💡 Use `/heatmap` to see detailed hourly breakdown
             """.strip()
             
-            await self._send_message_with_retry(
+            await send_message_with_retry(
                 update,
                 activity_text,
                 parse_mode="Markdown",
-                delay_between_messages=0.5
+                delay_before_send=0.5
             )
             
         except Exception as e:
@@ -258,19 +187,8 @@ class HeatmapCommandPlugin(CommandPlugin):
                 error=str(e),
                 exc_info=True
             )
-            await self._send_message_with_retry(
+            await send_message_with_retry(
                 update,
                 "❌ An error occurred while fetching activity data.",
-                delay_between_messages=0.5
+                delay_before_send=0.5
             )
-    
-    def _format_heatmap(self, data) -> str:
-        """
-        DEPRECATED: Moved to HeatmapService.format_heatmap()
-        Kept for backward compatibility only.
-        """
-        # This method is deprecated and kept only for reference
-        # All formatting is now done in the service layer
-        from ..services.heatmap_service import HeatmapService
-        service = HeatmapService(None)
-        return service.format_heatmap(data)
