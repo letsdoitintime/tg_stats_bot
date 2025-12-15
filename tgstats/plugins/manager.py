@@ -110,14 +110,6 @@ class PluginManager:
                 return True
         
         return False
-        
-        self._plugins: Dict[str, BasePlugin] = {}
-        self._command_plugins: Dict[str, CommandPlugin] = {}
-        self._handler_plugins: List[HandlerPlugin] = []
-        self._statistics_plugins: Dict[str, StatisticsPlugin] = {}
-        self._service_plugins: Dict[str, ServicePlugin] = {}
-        
-        self._logger = structlog.get_logger(__name__)
     
     def discover_plugins(self) -> List[Type[BasePlugin]]:
         """
