@@ -4,6 +4,13 @@ This module provides database engines, session factories, and connection managem
 for both async (application) and sync (migrations, Celery) operations.
 
 The module uses lazy initialization to avoid circular dependencies with the config module.
+
+Note on Thread Safety:
+    The module-level state with lazy initialization is intentional and safe for this use case:
+    - SQLAlchemy engines are thread-safe by design
+    - The bot runs in a single-process async context (not multi-threaded)
+    - For testing, use pytest fixtures to provide fresh sessions
+    - Celery workers use separate sync engine instances per worker process
 """
 
 from typing import AsyncGenerator
@@ -15,6 +22,8 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 Base = declarative_base()
 
 # Module-level variables for engines and session factories (lazily initialized)
+# These are initialized once and reused throughout the application lifecycle.
+# SQLAlchemy engines are designed to be long-lived and thread-safe.
 _engine: AsyncEngine | None = None
 _sync_engine: Engine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None

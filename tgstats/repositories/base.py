@@ -112,13 +112,19 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             Updated model instance
             
+        Raises:
+            AttributeError: If any attribute doesn't exist on the model
+            
         Note:
             This only flushes changes to the database. Call session.commit()
             to persist the changes.
         """
         for key, value in kwargs.items():
-            if hasattr(instance, key):
-                setattr(instance, key, value)
+            if not hasattr(instance, key):
+                raise AttributeError(
+                    f"Model {type(instance).__name__} has no attribute '{key}'"
+                )
+            setattr(instance, key, value)
         await self.session.flush()
         await self.session.refresh(instance)
         return instance
@@ -142,8 +148,9 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             Total count of records for this model
         """
+        # Use func.count() with a primary key or * for efficiency
         result = await self.session.execute(
-            select(self.model).with_only_columns(func.count())
+            select(func.count()).select_from(self.model)
         )
         return result.scalar_one()
     

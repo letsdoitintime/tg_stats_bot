@@ -255,7 +255,7 @@ class Settings(BaseSettings):
     )
     
     @model_validator(mode='after')
-    def validate_webhook_mode(self) -> 'Settings':
+    def validate_webhook_mode(self) -> Settings:
         """Validate that webhook_url is provided when mode is webhook."""
         if self.mode == "webhook" and not self.webhook_url:
             raise ConfigurationError(
