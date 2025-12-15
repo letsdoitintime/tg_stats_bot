@@ -9,12 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import structlog
 
-from ..base import CommandPlugin, PluginMetadata
-from ...utils.decorators import with_db_session, group_only
-from ...services.engagement_service import EngagementScoringService
-from ...repositories.user_repository import UserRepository
-from ...repositories.chat_repository import ChatRepository
-from ...core.exceptions import ChatNotSetupError
+from .base import CommandPlugin, PluginMetadata
+from ..utils.decorators import with_db_session, group_only
+from ..services.engagement_service import EngagementScoringService
+from ..repositories.user_repository import UserRepository
+from ..repositories.chat_repository import ChatRepository
+from ..core.exceptions import ChatNotSetupError
 
 logger = structlog.get_logger(__name__)
 
@@ -43,8 +43,15 @@ class EngagementPlugin(CommandPlugin):
         """Cleanup when plugin unloads."""
         logger.info("Engagement plugin shutting down")
 
-    @property
-    def commands(self) -> dict:
+    def get_commands(self) -> dict:
+        """Return command handlers."""
+        return {
+            'engagement': self.engagement_command,
+            'leaderboard': self.leaderboard_command,
+            'myscore': self.my_score_command
+        }
+
+    def get_command_descriptions(self) -> dict:
         """Return command descriptions."""
         return {
             'engagement': 'Show your engagement score',
@@ -178,13 +185,8 @@ class EngagementPlugin(CommandPlugin):
         if not chat or not chat.settings:
             raise ChatNotSetupError("This chat hasn't been set up yet. Use /setup first.")
         
-        # Check if user is admin
-        chat_member = await context.bot.get_chat_member(chat_id, update.effective_user.id)
-        if chat_member.status not in ['creator', 'administrator']:
-            await update.message.reply_text(
-                "⛔ Only administrators can view the leaderboard."
-            )
-            return
+        # Leaderboard is public - no admin check needed
+        # Anyone in the group can view engagement scores
         
         # Calculate scores for all users
         await update.message.reply_text("🔄 Calculating engagement scores...")

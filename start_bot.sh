@@ -7,10 +7,44 @@ cd "$SCRIPT_DIR"
 
 echo "=== TG Stats Bot Step 2 Startup ==="
 
+# Function to safely kill only this bot's processes
+kill_bot_processes() {
+    echo "🧹 Checking for existing bot processes from this directory..."
+    
+    # Find and kill bot_main processes running from this specific directory
+    # Using pgrep with full command line check to ensure we only target this bot
+    local killed=0
+    
+    # Check for bot_main processes
+    for pid in $(pgrep -f "python.*bot_main"); do
+        # Get the working directory of the process
+        local proc_cwd=$(readlink -f /proc/$pid/cwd 2>/dev/null || echo "")
+        
+        # Only kill if it's running from our directory
+        if [ "$proc_cwd" = "$SCRIPT_DIR" ]; then
+            echo "  Killing bot process (PID: $pid) from $proc_cwd"
+            kill -9 $pid 2>/dev/null && killed=$((killed + 1))
+        fi
+    done
+    
+    if [ $killed -gt 0 ]; then
+        echo "  ✅ Killed $killed bot process(es)"
+        sleep 1
+    else
+        echo "  ℹ️ No existing bot processes found from this directory"
+    fi
+}
+
+# Kill any existing instances of THIS bot before starting
+kill_bot_processes
+
 # Load environment variables from .env file
 if [ -f ".env" ]; then
     echo "Loading environment variables from .env file..."
-    export $(grep -v '^#' .env | grep -v '^$' | xargs)
+    # Load env vars while handling inline comments and spaces properly
+    set -a  # automatically export all variables
+    source <(grep -v '^#' .env | grep -v '^$' | sed 's/#.*$//' | sed '/^$/d')
+    set +a  # stop auto-export
     echo "✅ Environment variables loaded"
 else
     echo "❌ .env file not found! Please create it with required variables."
@@ -169,13 +203,13 @@ echo "3) FastAPI only (webhook/API mode)"
 echo "4) Generate sample data and exit"
 echo ""
 
-# Read with 10-second timeout, default to option 1
-echo -n "Enter choice (1-4) or wait 10s for default [1]: "
-if read -t 10 choice; then
+# Read with 3-second timeout, default to option 1
+echo -n "Enter choice (1-4) or wait 3s for default [1]: "
+if read -t 3 choice; then
     echo ""  # New line after input
 else
     echo ""  # New line after timeout
-    echo "⏰ No input received in 10 seconds, using default option 1 (Full stack)"
+    echo "⏰ No input received in 3 seconds, using default option 1 (Full stack)"
     choice=1
 fi
 
@@ -248,6 +282,9 @@ case $choice in
             # Stop all related processes more aggressively
             pkill -f "uvicorn.*tgstats" 2>/dev/null || true
             pkill -f "celery.*tgstats" 2>/dev/null || true
+            
+            # Kill bot processes from this directory only
+            kill_bot_processes
             
             # If lsof is available, kill processes on port 8000
             if command -v lsof &> /dev/null; then

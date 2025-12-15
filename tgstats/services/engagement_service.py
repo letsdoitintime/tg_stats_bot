@@ -175,9 +175,9 @@ class EngagementScoringService:
         # Message statistics
         msg_query = select(
             func.count(Message.msg_id).label('message_count'),
-            func.avg(Message.text_length).label('avg_length'),
+            func.avg(Message.text_len).label('avg_length'),
             func.count(func.distinct(func.date_trunc('day', Message.date))).label('days_active'),
-            func.sum(Message.url_count).label('url_count'),
+            func.sum(Message.urls_cnt).label('url_count'),
             func.count().filter(Message.media_type.isnot(None)).label('media_count')
         ).where(
             Message.chat_id == chat_id,

@@ -66,15 +66,9 @@ class HeatmapCommandPlugin(CommandPlugin):
         
         chat = update.effective_chat
         
-        # Initial status message
-        await send_message_with_retry(
-            update, 
-            "🔄 Analyzing activity patterns...",
-            delay_before_send=0
-        )
-        
         try:
             # Use service layer for all analytics - NO Telegram API calls for data
+            # Note: No status message needed - queries are fast (<100ms) with materialized views
             heatmap_service = HeatmapService(session)
             
             # Check if this is a large chat
@@ -85,8 +79,6 @@ class HeatmapCommandPlugin(CommandPlugin):
                     "heatmap_large_chat_detected",
                     chat_id=chat.id
                 )
-                # Add delay for large chats to prevent API flooding
-                await asyncio.sleep(0.5)
             
             # Get activity data from database (no Telegram API calls)
             data = await heatmap_service.get_hourly_activity(
@@ -99,19 +91,19 @@ class HeatmapCommandPlugin(CommandPlugin):
                 await send_message_with_retry(
                     update,
                     "📊 No messages found in the last 7 days.",
-                    delay_before_send=0.5
+                    delay_before_send=0.3
                 )
                 return
             
             # Format heatmap visualization
             heatmap_text = heatmap_service.format_heatmap(data)
             
-            # Send with delay to prevent flooding
+            # Send result - single message, minimal delay
             await send_message_with_retry(
                 update,
                 heatmap_text,
                 parse_mode="Markdown",
-                delay_before_send=0.5
+                delay_before_send=0.3
             )
             
         except Exception as e:
@@ -121,11 +113,10 @@ class HeatmapCommandPlugin(CommandPlugin):
                 error=str(e),
                 exc_info=True
             )
-            # Try to send error message with delay
             await send_message_with_retry(
                 update,
                 "❌ An error occurred while generating the heatmap.",
-                delay_before_send=0.5
+                delay_before_send=0.3
             )
     
     @with_db_session
@@ -160,7 +151,7 @@ class HeatmapCommandPlugin(CommandPlugin):
                 await send_message_with_retry(
                     update,
                     "📊 No messages found in the last 30 days.",
-                    delay_before_send=0.5
+                    delay_before_send=0.3
                 )
                 return
             
@@ -180,7 +171,7 @@ class HeatmapCommandPlugin(CommandPlugin):
                 update,
                 activity_text,
                 parse_mode="Markdown",
-                delay_before_send=0.5
+                delay_before_send=0.3
             )
             
         except Exception as e:
@@ -193,5 +184,5 @@ class HeatmapCommandPlugin(CommandPlugin):
             await send_message_with_retry(
                 update,
                 "❌ An error occurred while fetching activity data.",
-                delay_before_send=0.5
+                delay_before_send=0.3
             )

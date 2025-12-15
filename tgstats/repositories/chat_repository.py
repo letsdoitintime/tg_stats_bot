@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from telegram import Chat as TelegramChat
 
 from ..models import Chat, GroupSettings
@@ -20,9 +21,11 @@ class ChatRepository(BaseRepository[Chat]):
         super().__init__(Chat, session)
     
     async def get_by_chat_id(self, chat_id: int) -> Optional[Chat]:
-        """Get chat by Telegram chat ID."""
+        """Get chat by Telegram chat ID with settings eagerly loaded."""
         result = await self.session.execute(
-            select(Chat).where(Chat.chat_id == chat_id)
+            select(Chat)
+            .where(Chat.chat_id == chat_id)
+            .options(selectinload(Chat.settings))
         )
         return result.scalar_one_or_none()
     

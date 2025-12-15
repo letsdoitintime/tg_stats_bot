@@ -149,8 +149,10 @@ def refresh_materialized_view(self, view_name: str) -> Dict[str, Any]:
             rows_before = result_before[0] if result_before else 0
             
             # Refresh the materialized view
+            # Note: CONCURRENTLY requires unique indexes, which we don't have
+            # Regular refresh is fast enough for our small views (< 1 second)
             logger.info(f"Starting refresh of materialized view: {view_name}")
-            session.execute(text(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}"))
+            session.execute(text(f"REFRESH MATERIALIZED VIEW {view_name}"))
             session.commit()
             
             # Get row count after refresh

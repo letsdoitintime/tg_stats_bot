@@ -26,10 +26,30 @@ def with_db_session(func: Callable) -> Callable:
             # Rollback happens automatically on error
     """
     @functools.wraps(func)
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs) -> Any:
+    async def wrapper(*args, **kwargs) -> Any:
+        # Handle both bound methods (self, update, context) and functions (update, context)
+        if len(args) >= 3 and hasattr(args[0], '__class__') and not isinstance(args[0], Update):
+            # Bound method: (self, update, context, ...)
+            self_arg = args[0]
+            update = args[1]
+            context = args[2]
+            extra_args = args[3:]
+        elif len(args) >= 2:
+            # Regular function: (update, context, ...)
+            self_arg = None
+            update = args[0]
+            context = args[1]
+            extra_args = args[2:]
+        else:
+            raise TypeError(f"Handler {func.__name__} requires at least update and context arguments")
+        
         async with async_session() as session:
             try:
-                result = await func(update, context, session, *args, **kwargs)
+                # Call with or without self depending on what we detected
+                if self_arg is not None:
+                    result = await func(self_arg, update, context, session, *extra_args, **kwargs)
+                else:
+                    result = await func(update, context, session, *extra_args, **kwargs)
                 # Auto-commit on success
                 await session.commit()
                 logger.debug("Transaction committed", handler=func.__name__)
@@ -87,7 +107,23 @@ def require_admin(func: Callable) -> Callable:
     Should be used after with_db_session decorator.
     """
     @functools.wraps(func)
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs) -> Any:
+    async def wrapper(*args, **kwargs) -> Any:
+        # Handle both bound methods (self, update, context) and functions (update, context)
+        if len(args) >= 3 and hasattr(args[0], '__class__') and not isinstance(args[0], Update):
+            # Bound method: (self, update, context, ...)
+            self_arg = args[0]
+            update = args[1]
+            context = args[2]
+            extra_args = args[3:]
+        elif len(args) >= 2:
+            # Regular function: (update, context, ...)
+            self_arg = None
+            update = args[0]
+            context = args[1]
+            extra_args = args[2:]
+        else:
+            return
+        
         if not update.effective_chat or not update.effective_user:
             return
         
@@ -104,7 +140,11 @@ def require_admin(func: Callable) -> Callable:
                     )
                 return
             
-            return await func(update, context, *args, **kwargs)
+            # Call with or without self
+            if self_arg is not None:
+                return await func(self_arg, update, context, *extra_args, **kwargs)
+            else:
+                return await func(update, context, *extra_args, **kwargs)
             
         except Exception as e:
             logger.error("Error checking admin status", error=str(e))
@@ -118,7 +158,23 @@ def require_admin(func: Callable) -> Callable:
 def group_only(func: Callable) -> Callable:
     """Decorator that ensures command is only used in groups."""
     @functools.wraps(func)
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs) -> Any:
+    async def wrapper(*args, **kwargs) -> Any:
+        # Handle both bound methods (self, update, context) and functions (update, context)
+        if len(args) >= 3 and hasattr(args[0], '__class__') and not isinstance(args[0], Update):
+            # Bound method: (self, update, context, ...)
+            self_arg = args[0]
+            update = args[1]
+            context = args[2]
+            extra_args = args[3:]
+        elif len(args) >= 2:
+            # Regular function: (update, context, ...)
+            self_arg = None
+            update = args[0]
+            context = args[1]
+            extra_args = args[2:]
+        else:
+            return
+        
         if not update.effective_chat:
             return
         
@@ -129,5 +185,9 @@ def group_only(func: Callable) -> Callable:
                 )
             return
         
-        return await func(update, context, *args, **kwargs)
+        # Call with or without self
+        if self_arg is not None:
+            return await func(self_arg, update, context, *extra_args, **kwargs)
+        else:
+            return await func(update, context, *extra_args, **kwargs)
     return wrapper

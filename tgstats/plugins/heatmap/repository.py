@@ -3,11 +3,12 @@
 from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models import Message
 from ...repositories.base import BaseRepository
+from ...core.config import settings
 
 
 class HeatmapRepository(BaseRepository[Message]):
@@ -50,9 +51,8 @@ class HeatmapRepository(BaseRepository[Message]):
         """
         Get message counts grouped by hour and day of week.
         
-        Note: The LIMIT is applied to aggregated results (hour/dow groups),
-        not raw messages. For very large chats, consider pre-filtering
-        by date range or using materialized views.
+        Uses pre-computed materialized views for optimal performance.
+        This avoids expensive EXTRACT operations on millions of rows.
         
         Args:
             chat_id: Chat ID
@@ -64,22 +64,44 @@ class HeatmapRepository(BaseRepository[Message]):
         """
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
-        # Optimized query with aggregation at database level
-        # Note: For production with millions of messages, consider:
-        # 1. Adding a subquery with LIMIT on raw messages
-        # 2. Using materialized views for common time ranges
-        # 3. Partitioning messages table by date
-        query = select(
-            func.extract('hour', Message.date).label('hour'),
-            func.extract('dow', Message.date).label('dow'),
-            func.count(Message.msg_id).label('count')
-        ).where(
-            Message.chat_id == chat_id,
-            Message.date >= cutoff_date
-        ).group_by('hour', 'dow').limit(limit)
+        # Use materialized view for instant results instead of scanning messages table
+        # This reduces CPU from 200% to near zero by avoiding EXTRACT() on every row
+        is_timescale = await self._is_timescaledb_available()
+        view_name = 'chat_hourly_heatmap' if is_timescale else 'chat_hourly_heatmap_mv'
         
-        result = await self.session.execute(query)
+        # Query pre-computed aggregates - weekday is 1-7, convert to 0-6 for dow
+        # Note: PostgreSQL dow is 0=Sunday, ISODOW is 1=Monday
+        query = text(f"""
+            SELECT 
+                CAST(hour AS INTEGER) as hour,
+                CAST(CASE 
+                    WHEN weekday = 7 THEN 0  -- Sunday: ISODOW 7 -> dow 0
+                    ELSE weekday             -- Mon-Sat: ISODOW 1-6 -> dow 1-6
+                END AS INTEGER) as dow,
+                CAST(SUM(msg_cnt) AS INTEGER) as count
+            FROM {view_name}
+            WHERE chat_id = :chat_id
+              AND hour_bucket >= :cutoff_date
+            GROUP BY hour, weekday
+            ORDER BY weekday, hour
+            LIMIT :limit
+        """)
+        
+        result = await self.session.execute(
+            query,
+            {"chat_id": chat_id, "cutoff_date": cutoff_date, "limit": limit}
+        )
         return result.all()
+    
+    async def _is_timescaledb_available(self) -> bool:
+        """Check if TimescaleDB extension is available."""
+        try:
+            result = await self.session.execute(
+                text("SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'")
+            )
+            return result.scalar() is not None
+        except Exception:
+            return False
     
     async def get_peak_activity_hour(
         self,
@@ -98,15 +120,26 @@ class HeatmapRepository(BaseRepository[Message]):
         """
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
-        query = select(
-            func.extract('hour', Message.date).label('hour'),
-            func.count(Message.msg_id).label('count')
-        ).where(
-            Message.chat_id == chat_id,
-            Message.date >= cutoff_date
-        ).group_by('hour').order_by(func.count(Message.msg_id).desc()).limit(1)
+        # Use materialized view for performance
+        is_timescale = await self._is_timescaledb_available()
+        view_name = 'chat_hourly_heatmap' if is_timescale else 'chat_hourly_heatmap_mv'
         
-        result = await self.session.execute(query)
+        query = text(f"""
+            SELECT 
+                CAST(hour AS INTEGER) as hour,
+                CAST(SUM(msg_cnt) AS INTEGER) as count
+            FROM {view_name}
+            WHERE chat_id = :chat_id
+              AND hour_bucket >= :cutoff_date
+            GROUP BY hour
+            ORDER BY count DESC
+            LIMIT 1
+        """)
+        
+        result = await self.session.execute(
+            query,
+            {"chat_id": chat_id, "cutoff_date": cutoff_date}
+        )
         return result.first()
     
     async def get_peak_activity_day(
@@ -126,13 +159,28 @@ class HeatmapRepository(BaseRepository[Message]):
         """
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
-        query = select(
-            func.extract('dow', Message.date).label('dow'),
-            func.count(Message.msg_id).label('count')
-        ).where(
-            Message.chat_id == chat_id,
-            Message.date >= cutoff_date
-        ).group_by('dow').order_by(func.count(Message.msg_id).desc()).limit(1)
+        # Use materialized view for performance
+        is_timescale = await self._is_timescaledb_available()
+        view_name = 'chat_hourly_heatmap' if is_timescale else 'chat_hourly_heatmap_mv'
         
-        result = await self.session.execute(query)
+        # Convert ISODOW (1-7) to dow (0-6) for consistency
+        query = text(f"""
+            SELECT 
+                CAST(CASE 
+                    WHEN weekday = 7 THEN 0  -- Sunday
+                    ELSE weekday
+                END AS INTEGER) as dow,
+                CAST(SUM(msg_cnt) AS INTEGER) as count
+            FROM {view_name}
+            WHERE chat_id = :chat_id
+              AND hour_bucket >= :cutoff_date
+            GROUP BY weekday
+            ORDER BY count DESC
+            LIMIT 1
+        """)
+        
+        result = await self.session.execute(
+            query,
+            {"chat_id": chat_id, "cutoff_date": cutoff_date}
+        )
         return result.first()

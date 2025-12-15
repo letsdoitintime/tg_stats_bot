@@ -157,7 +157,7 @@ class PluginManager:
                         if (issubclass(obj, BasePlugin) and 
                             obj not in [BasePlugin, CommandPlugin, HandlerPlugin, 
                                        StatisticsPlugin, ServicePlugin] and
-                            obj.__module__ == module.__name__):
+                            obj.__module__.startswith(module_name)):
                             
                             plugin_classes.append(obj)
                             self._logger.info(
