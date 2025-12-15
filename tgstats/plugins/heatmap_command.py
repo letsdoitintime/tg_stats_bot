@@ -4,7 +4,7 @@ Activity Heatmap Command Plugin.
 Provides a /heatmap command to show when users are most active.
 """
 
-from typing import Dict, Callable
+from typing import Dict, Callable, TYPE_CHECKING
 import asyncio
 
 from telegram import Update
@@ -14,6 +14,9 @@ from .base import CommandPlugin, PluginMetadata
 from ..utils.decorators import with_db_session, group_only
 from ..utils.telegram_helpers import send_message_with_retry
 from ..services.heatmap_service import HeatmapService
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class HeatmapCommandPlugin(CommandPlugin):
@@ -55,7 +58,7 @@ class HeatmapCommandPlugin(CommandPlugin):
         self,
         update: Update,
         context: ContextTypes.DEFAULT_TYPE,
-        session
+        session: "AsyncSession"
     ) -> None:
         """Generate activity heatmap using database queries only."""
         if not update.effective_chat or not update.message:
@@ -131,7 +134,7 @@ class HeatmapCommandPlugin(CommandPlugin):
         self,
         update: Update,
         context: ContextTypes.DEFAULT_TYPE,
-        session
+        session: "AsyncSession"
     ) -> None:
         """Show activity summary using database queries only."""
         if not update.effective_chat or not update.message:

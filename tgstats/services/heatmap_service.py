@@ -148,8 +148,13 @@ class HeatmapService:
         for hour, dow, count in data:
             matrix[int(dow)][int(hour)] = count
         
-        # Find max value for normalization
-        max_count = max(max(row) for row in matrix) if matrix else 1
+        # Find max value for normalization (with safety checks)
+        max_count = 1  # Default to 1 to avoid division by zero
+        for row in matrix:
+            if row:  # Check row is not empty
+                row_max = max(row)
+                if row_max > max_count:
+                    max_count = row_max
         
         # Create text visualization
         days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -163,7 +168,7 @@ class HeatmapService:
             text += f"{days[i]} |"
             for j in range(0, 24, 4):
                 # Average counts in 4-hour blocks
-                block_avg = sum(row[j:j+4]) / 4 / max(max_count, 1)
+                block_avg = sum(row[j:j+4]) / 4 / max_count
                 
                 if block_avg > 0.75:
                     char = '█'

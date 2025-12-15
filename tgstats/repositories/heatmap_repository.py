@@ -50,10 +50,14 @@ class HeatmapRepository(BaseRepository[Message]):
         """
         Get message counts grouped by hour and day of week.
         
+        Note: The LIMIT is applied to aggregated results (hour/dow groups),
+        not raw messages. For very large chats, consider pre-filtering
+        by date range or using materialized views.
+        
         Args:
             chat_id: Chat ID
             days: Number of days to look back
-            limit: Maximum number of messages to process
+            limit: Maximum number of aggregated groups to return
             
         Returns:
             List of tuples (hour, day_of_week, count)
@@ -61,6 +65,10 @@ class HeatmapRepository(BaseRepository[Message]):
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
         # Optimized query with aggregation at database level
+        # Note: For production with millions of messages, consider:
+        # 1. Adding a subquery with LIMIT on raw messages
+        # 2. Using materialized views for common time ranges
+        # 3. Partitioning messages table by date
         query = select(
             func.extract('hour', Message.date).label('hour'),
             func.extract('dow', Message.date).label('dow'),

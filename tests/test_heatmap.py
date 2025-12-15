@@ -69,7 +69,8 @@ async def sample_messages(session, sample_chat, sample_user):
     # Create messages across different hours and days
     for day_offset in range(7):
         for hour in range(0, 24, 2):  # Every 2 hours
-            msg_date = base_date - timedelta(days=day_offset, hours=23-hour)
+            # Create messages in chronological order for clarity
+            msg_date = base_date - timedelta(days=day_offset, hours=hour)
             message = Message(
                 chat_id=sample_chat.chat_id,
                 msg_id=len(messages) + 1,

@@ -66,6 +66,16 @@ async def send_message_with_retry(
             
         except RetryAfter as e:
             retry_after = e.retry_after
+            
+            # Bound check for retry_after to prevent unreasonably long waits
+            if retry_after > 300:  # Max 5 minutes
+                logger.error(
+                    "flood_control_excessive_wait",
+                    chat_id=update.effective_chat.id if update.effective_chat else None,
+                    retry_after=retry_after
+                )
+                return False
+            
             logger.warning(
                 "flood_control_hit",
                 chat_id=update.effective_chat.id if update.effective_chat else None,
