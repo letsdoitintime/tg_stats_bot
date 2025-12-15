@@ -18,31 +18,45 @@ else:
     async_db_url = db_url
 
 # Create async engine with optimized connection pooling
-engine = create_async_engine(
-    async_db_url,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=settings.db_pool_size,
-    max_overflow=settings.db_max_overflow,
-    pool_recycle=3600,
-    pool_timeout=settings.db_pool_timeout,
-    connect_args={
-        "server_settings": {
-            "jit": "off",
-            "statement_timeout": "60000",
+# SQLite doesn't support connection pooling or server_settings
+if "sqlite" in str(async_db_url):
+    engine = create_async_engine(
+        async_db_url,
+        echo=False
+    )
+else:
+    engine = create_async_engine(
+        async_db_url,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
+        pool_recycle=3600,
+        pool_timeout=settings.db_pool_timeout,
+        connect_args={
+            "server_settings": {
+                "jit": "off",
+                "statement_timeout": "60000",
+            }
         }
-    }
-)
+    )
 
 # Create sync engine for Celery and other sync operations with connection pooling
-sync_engine = create_engine(
-    settings.database_url,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=max(5, settings.db_pool_size // 2),
-    max_overflow=max(10, settings.db_max_overflow // 2),
-    pool_recycle=3600
-)
+# SQLite doesn't support connection pooling
+if "sqlite" in settings.database_url:
+    sync_engine = create_engine(
+        settings.database_url,
+        echo=False
+    )
+else:
+    sync_engine = create_engine(
+        settings.database_url,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=max(5, settings.db_pool_size // 2),
+        max_overflow=max(10, settings.db_max_overflow // 2),
+        pool_recycle=3600
+    )
 
 # Create async session factory
 async_session = async_sessionmaker(
