@@ -7,8 +7,8 @@ from sqlalchemy.pool import StaticPool
 
 from tgstats.db import Base
 from tgstats.models import Message, Chat, User
-from tgstats.repositories.heatmap_repository import HeatmapRepository
-from tgstats.services.heatmap_service import HeatmapService
+from tgstats.plugins.heatmap.repository import HeatmapRepository
+from tgstats.plugins.heatmap.service import HeatmapService
 
 
 @pytest.fixture

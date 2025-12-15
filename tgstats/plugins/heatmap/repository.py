@@ -6,8 +6,8 @@ from typing import List, Tuple, Optional
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Message
-from .base import BaseRepository
+from ...models import Message
+from ...repositories.base import BaseRepository
 
 
 class HeatmapRepository(BaseRepository[Message]):

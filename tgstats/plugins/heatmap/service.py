@@ -8,8 +8,8 @@ import json
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
-from ..repositories.heatmap_repository import HeatmapRepository
-from ..utils.cache import cache
+from .repository import HeatmapRepository
+from ...utils.cache import cache
 
 logger = structlog.get_logger(__name__)
 
