@@ -1,7 +1,7 @@
 """Base classes for all plugins."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Callable
 from dataclasses import dataclass
 
 import structlog

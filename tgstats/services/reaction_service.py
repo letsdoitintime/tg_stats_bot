@@ -2,7 +2,6 @@
 
 import structlog
 from typing import Optional, TYPE_CHECKING
-from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import MessageReactionUpdated, ReactionType
@@ -11,8 +10,6 @@ from .base import BaseService
 
 if TYPE_CHECKING:
     from ..repositories.factory import RepositoryFactory
-    from .chat_service import ChatService
-    from .user_service import UserService
 
 logger = structlog.get_logger(__name__)
 

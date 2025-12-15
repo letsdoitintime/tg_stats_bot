@@ -6,12 +6,11 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ..services.chat_service import ChatService
-from ..utils.decorators import group_only, require_admin, with_db_session
+from ..utils.decorators import with_db_session
 from ..utils.validators import parse_boolean_argument
 from ..utils.rate_limiter import rate_limiter
-from ..utils.sanitizer import sanitize_command_arg, sanitize_text
 from ..utils.metrics import metrics, track_time
-from ..core.exceptions import ValidationError, ChatNotSetupError
+from ..core.exceptions import ValidationError
 from ..enums import ChatType
 
 logger = structlog.get_logger(__name__)

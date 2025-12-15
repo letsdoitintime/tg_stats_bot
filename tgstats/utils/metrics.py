@@ -1,6 +1,6 @@
 """Prometheus metrics for monitoring."""
 
-from typing import Optional, Callable
+from typing import Callable
 from functools import wraps
 import time
 import structlog

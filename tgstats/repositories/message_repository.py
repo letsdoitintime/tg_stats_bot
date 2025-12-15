@@ -1,6 +1,6 @@
 """Message repository for database operations."""
 
-from datetime import datetime, timezone
+from datetime import timezone
 from typing import Optional, Dict, Any
 
 from sqlalchemy import select

@@ -28,16 +28,11 @@ docker-compose up --build
 """
 
 import asyncio
-import logging
 import signal
 import sys
 import traceback
-from typing import NoReturn
 
 import structlog
-from alembic import command
-from alembic.config import Config
-from sqlalchemy import text
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -50,7 +45,6 @@ from telegram.ext import (
 from telegram.request import HTTPXRequest
 
 from .config import settings
-from .db import async_session, get_sync_engine
 from .utils.logging import setup_logging, configure_third_party_logging
 from .handlers.commands import (
     setup_command,

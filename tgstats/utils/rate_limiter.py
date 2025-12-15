@@ -55,7 +55,7 @@ class RateLimiter:
                 window="minute",
                 count=requests_last_minute
             )
-            return True, f"⚠️ Rate limit exceeded. Please wait a minute before sending more commands."
+            return True, "⚠️ Rate limit exceeded. Please wait a minute before sending more commands."
         
         if requests_last_hour >= settings.rate_limit_per_hour:
             logger.warning(
@@ -64,7 +64,7 @@ class RateLimiter:
                 window="hour",
                 count=requests_last_hour
             )
-            return True, f"⚠️ Rate limit exceeded. Please wait before sending more commands."
+            return True, "⚠️ Rate limit exceeded. Please wait before sending more commands."
         
         # Add this request
         requests.append(current_time)

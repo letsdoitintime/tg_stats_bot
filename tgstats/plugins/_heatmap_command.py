@@ -12,7 +12,6 @@ from telegram import Update
 from telegram.ext import Application, ContextTypes
 from telegram.error import RetryAfter, TimedOut, NetworkError
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .base import CommandPlugin, PluginMetadata
 from ..db import async_session
