@@ -1,0 +1,9 @@
+# Engagement plugin local config
+# This file can override or extend settings from plugins/plugins.yaml
+
+# Show per-user message counts in leaderboards
+include_message_count: true
+
+# You can add other plugin-specific flags here
+# min_messages: 5
+# default_days: 30

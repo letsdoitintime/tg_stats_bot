@@ -22,14 +22,38 @@ plugins:
     config:
       # Custom config for heatmap plugin
       default_days: 7
+  engagement_scores:
+    enabled: true
+    config:
+      # Show per-user message counts in leaderboards
+      include_message_count: true
+
 
 # Global plugin settings
 settings:
   # Enable hot reload - plugins auto-reload on file changes
   hot_reload: true
   
-  # Hot reload check interval in seconds
+  # Hot reload check interval in seconds (how often to scan for changes)
   reload_check_interval: 3.0
+  
+  # File patterns to watch for changes (glob-style patterns)
+  # Default: ['*.py', '*.yaml', '*.yml']
+  # To watch all files use: ['*']
+  watch_patterns:
+    - '*.py'
+    - '*.yaml'
+    - '*.yml'
+    # - '*.json'  # Uncomment to watch JSON files
+    # - '*'       # Uncomment to watch ALL files
+  
+  # Patterns to ignore (even if they match watch_patterns)
+  ignore_patterns:
+    - 'README.md'
+    - '*.md'         # Ignore all markdown files
+    - '__pycache__'
+    - '*.pyc'
+    - '.git'
   
   # Additional plugin directories (comma-separated paths)
   # additional_dirs: /path/to/plugins,/another/path

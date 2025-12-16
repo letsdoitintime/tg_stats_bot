@@ -1,20 +1,23 @@
-"""Engagement scores plugin.
+"""Engagement plugin implementation module.
 
-Provides commands to view user engagement scores and leaderboards.
+This file contains the `EngagementPlugin` class moved out of the package
+`__init__` to keep the package entry thin and allow easier testing and
+maintenance.
 """
 
-from telegram import Update
+from telegram import Update, BotCommand
 from telegram.ext import CommandHandler, ContextTypes, Application
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import structlog
 
-from .base import CommandPlugin, PluginMetadata
-from ..utils.decorators import with_db_session, group_only
-from ..services.engagement_service import EngagementScoringService
-from ..repositories.user_repository import UserRepository
-from ..repositories.chat_repository import ChatRepository
-from ..core.exceptions import ChatNotSetupError
+from tgstats.plugins.base import CommandPlugin, PluginMetadata
+from tgstats.utils.decorators import with_db_session, group_only
+from tgstats.services.engagement_service import EngagementScoringService
+from tgstats.repositories.user_repository import UserRepository
+from tgstats.repositories.chat_repository import ChatRepository
+from tgstats.core.exceptions import ChatNotSetupError
+from html import escape as html_escape
 
 logger = structlog.get_logger(__name__)
 
@@ -33,10 +36,28 @@ class EngagementPlugin(CommandPlugin):
         )
 
     async def initialize(self, app: Application) -> None:
-        """Register command handlers."""
+        """Register command handlers and read plugin config."""
+        # Read plugin-specific config (set by PluginManager)
+        config = getattr(self, '_config', {}) or {}
+        self._include_message_count = config.get('include_message_count', True)
+
         app.add_handler(CommandHandler("engagement", self.engagement_command))
         app.add_handler(CommandHandler("leaderboard", self.leaderboard_command))
+        app.add_handler(CommandHandler("leaderboard_thread", self.leaderboard_thread_command))
         app.add_handler(CommandHandler("myscore", self.my_score_command))
+        
+        # Register commands in Telegram's command menu
+        commands = [
+            BotCommand(command, description)
+            for command, description in self.get_command_descriptions().items()
+        ]
+        
+        try:
+            await app.bot.set_my_commands(commands)
+            logger.info("Engagement commands registered in Telegram menu", commands=commands)
+        except Exception as e:
+            logger.warning("Failed to set bot commands", error=str(e))
+        
         logger.info("Engagement plugin initialized")
 
     async def shutdown(self) -> None:
@@ -48,6 +69,7 @@ class EngagementPlugin(CommandPlugin):
         return {
             'engagement': self.engagement_command,
             'leaderboard': self.leaderboard_command,
+            'leaderboard_thread': self.leaderboard_thread_command,
             'myscore': self.my_score_command
         }
 
@@ -55,7 +77,8 @@ class EngagementPlugin(CommandPlugin):
         """Return command descriptions."""
         return {
             'engagement': 'Show your engagement score',
-            'leaderboard': 'Show top engaged users (admin only)',
+            'leaderboard': 'Show top engaged users (chat-wide)',
+            'leaderboard_thread': 'Show top engaged users in current thread/topic',
             'myscore': 'Show detailed score breakdown'
         }
 
@@ -70,6 +93,7 @@ class EngagementPlugin(CommandPlugin):
         """Show user's engagement score."""
         chat_id = update.effective_chat.id
         user_id = update.effective_user.id
+        thread_id = getattr(update.effective_message, "message_thread_id", None)
         
         # Check if chat is set up
         chat_repo = ChatRepository(session)
@@ -82,7 +106,8 @@ class EngagementPlugin(CommandPlugin):
         score = await engagement_service.calculate_engagement_score(
             chat_id=chat_id,
             user_id=user_id,
-            days=30
+            days=30,
+            thread_id=thread_id,
         )
         
         # Format message
@@ -119,6 +144,7 @@ class EngagementPlugin(CommandPlugin):
         """Show detailed engagement score breakdown."""
         chat_id = update.effective_chat.id
         user_id = update.effective_user.id
+        thread_id = getattr(update.effective_message, "message_thread_id", None)
         
         # Check if chat is set up
         chat_repo = ChatRepository(session)
@@ -131,12 +157,13 @@ class EngagementPlugin(CommandPlugin):
         score = await engagement_service.calculate_engagement_score(
             chat_id=chat_id,
             user_id=user_id,
-            days=30
+            days=30,
+            thread_id=thread_id,
         )
         
         # Get detailed metrics
         metrics = await engagement_service._get_engagement_metrics(
-            chat_id, user_id, 30
+            chat_id, user_id, 30, thread_id
         )
         
         # Format detailed message
@@ -156,7 +183,8 @@ class EngagementPlugin(CommandPlugin):
             f"• Avg message length: {metrics.avg_message_length:.0f} chars\n"
             f"• URLs shared: {metrics.url_count}\n"
             f"• Media shared: {metrics.media_count}\n"
-            f"• Reactions received: {metrics.reactions_received}\n\n"
+            f"• Reactions received: {metrics.reactions_received}\n"
+            f"• Replies received: {metrics.replies_received}\n\n"
             
             f"*Interaction Score: {score.interaction_score:.1f}/100*\n"
             f"• Replies sent: {metrics.reply_count}\n"
@@ -178,6 +206,8 @@ class EngagementPlugin(CommandPlugin):
     ) -> None:
         """Show engagement leaderboard (top 10 users)."""
         chat_id = update.effective_chat.id
+        # Always show chat-wide leaderboard regardless of thread
+        thread_id = None
         
         # Check if chat is set up
         chat_repo = ChatRepository(session)
@@ -188,14 +218,12 @@ class EngagementPlugin(CommandPlugin):
         # Leaderboard is public - no admin check needed
         # Anyone in the group can view engagement scores
         
-        # Calculate scores for all users
-        await update.message.reply_text("🔄 Calculating engagement scores...")
-        
+        # Calculate scores for all users (no status message to avoid flood control)
         engagement_service = EngagementScoringService(session)
         scores = await engagement_service.calculate_chat_engagement_scores(
             chat_id=chat_id,
             days=30,
-            min_messages=5
+            min_messages=5,
         )
         
         if not scores:
@@ -206,21 +234,130 @@ class EngagementPlugin(CommandPlugin):
         user_repo = UserRepository(session)
         
         # Format leaderboard (top 10)
-        message = "🏆 *Engagement Leaderboard (Last 30 Days)*\n\n"
+        # Use plain text to avoid any parsing issues
+        header = "🏆 Engagement Leaderboard (Last 30 Days)"
+        if thread_id is not None:
+            header += " — Thread scope"
+        message = header + "\n\n"
         
+        # Build list with detailed logging to debug parsing issues
+        leaderboard_entries = []
         for idx, score in enumerate(scores[:10], 1):
             user = await user_repo.get_by_user_id(score.user_id)
             if user:
                 username = user.username or user.first_name or f"User {user.user_id}"
+                username_html = html_escape(username)
                 medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
-                message += f"{medal} {username}: *{score.total_score:.1f}*\n"
+                entry = f"{medal} <b>{username_html}</b>: {score.total_score:.1f}"
+
+                # Optionally include message/reply counts
+                if getattr(self, '_include_message_count', False):
+                    metrics = await engagement_service._get_engagement_metrics(
+                        chat_id, score.user_id, 30
+                    )
+                    entry += (
+                        f" ({metrics.message_count} msgs, {metrics.reply_count} 🔁, "
+                        f"{metrics.replies_received} 📥)"
+                    )
+
+                leaderboard_entries.append(entry)
+                logger.info(
+                    "Leaderboard entry",
+                    idx=idx,
+                    user_id=score.user_id,
+                    username=username,
+                    score=score.total_score,
+                    entry_length=len(entry)
+                )
         
-        message += f"\n_{len(scores)} active users total_"
+        # Log the full message before sending
+        message = message + "\n".join(leaderboard_entries)
+        message += f"\n\n{len(scores)} active users total"
         
-        await update.message.reply_text(message, parse_mode='Markdown')
+        logger.info(
+            "Sending leaderboard",
+            chat_id=chat_id,
+            message_length=len(message),
+            entries_count=len(leaderboard_entries)
+        )
+        
+        # Send as HTML so usernames are bolded
+        await update.message.reply_text(message, parse_mode='HTML')
         
         logger.info(
             "Leaderboard displayed",
             chat_id=chat_id,
+            total_users=len(scores)
+        )
+
+    @with_db_session
+    @group_only
+    async def leaderboard_thread_command(
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        session: AsyncSession
+    ) -> None:
+        """Show engagement leaderboard limited to the current thread/topic."""
+        chat_id = update.effective_chat.id
+        thread_id = getattr(update.effective_message, "message_thread_id", None)
+
+        if thread_id is None:
+            await update.message.reply_text(
+                "This command must be used inside a forum topic (thread)."
+            )
+            return
+
+        # Check if chat is set up
+        chat_repo = ChatRepository(session)
+        chat = await chat_repo.get_by_chat_id(chat_id)
+        if not chat or not chat.settings:
+            raise ChatNotSetupError("This chat hasn't been set up yet. Use /setup first.")
+
+        # Calculate thread-scoped scores
+        engagement_service = EngagementScoringService(session)
+        scores = await engagement_service.calculate_chat_engagement_scores(
+            chat_id=chat_id,
+            days=30,
+            min_messages=5,
+            thread_id=thread_id,
+        )
+
+        if not scores:
+            await update.message.reply_text("No active users found in this thread in the last 30 days.")
+            return
+
+        user_repo = UserRepository(session)
+
+        message = "🏆 Topic Engagement Leaderboard (Last 30 Days)\n\n"
+        leaderboard_entries = []
+        for idx, score in enumerate(scores[:10], 1):
+            user = await user_repo.get_by_user_id(score.user_id)
+            if user:
+                username = user.username or user.first_name or f"User {user.user_id}"
+                username_html = html_escape(username)
+                medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
+                entry = f"{medal} <b>{username_html}</b>: {score.total_score:.1f}"
+
+                if getattr(self, '_include_message_count', False):
+                    metrics = await engagement_service._get_engagement_metrics(
+                        chat_id, score.user_id, 30, thread_id
+                    )
+                    entry += (
+                        f" ({metrics.message_count} msgs, {metrics.reply_count} 🔁, "
+                        f"{metrics.replies_received} 📥)"
+                    )
+
+                leaderboard_entries.append(entry)
+
+        message = message + "\n".join(leaderboard_entries)
+        message += f"\n\n{len(scores)} active users in thread"
+
+        await update.message.reply_text(message, parse_mode='HTML')
+
+        logger.info(
+            "Thread leaderboard displayed",
+            chat_id=chat_id,
+            thread_id=thread_id,
             total_users=len(scores)
         )

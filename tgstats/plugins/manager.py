@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Type, Optional
 import asyncio
+import fnmatch
 
 import structlog
 import yaml
@@ -46,18 +47,24 @@ class PluginManager:
         # Initialize logger first
         self._logger = structlog.get_logger(__name__)
         
+        # Hot reload tracking - initialize BEFORE loading config
+        self._file_mtimes: Dict[str, float] = {}
+        self._hot_reload_task: Optional[asyncio.Task] = None
+        
         # Load config after logger is available
         self.plugin_config = self._load_config()
+        # Monitor plugins.yaml for changes so config edits trigger reload
+        try:
+            if os.path.exists(self.config_file):
+                self._file_mtimes[self.config_file] = os.path.getmtime(self.config_file)
+        except Exception:
+            pass
         
         self._plugins: Dict[str, BasePlugin] = {}
         self._command_plugins: Dict[str, CommandPlugin] = {}
         self._handler_plugins: List[HandlerPlugin] = []
         self._statistics_plugins: Dict[str, StatisticsPlugin] = {}
         self._service_plugins: Dict[str, ServicePlugin] = {}
-        
-        # Hot reload tracking
-        self._file_mtimes: Dict[str, float] = {}
-        self._hot_reload_task: Optional[asyncio.Task] = None
     
     def _load_config(self) -> dict:
         """Load plugin configuration from YAML file."""
@@ -99,14 +106,46 @@ class PluginManager:
         if name in ['base.py', 'manager.py', 'plugins.yaml', 'README.md']:
             return False
         
-        # Accept .py files
+        # Accept .py files, but prefer a package directory with the same name
         if filepath.is_file() and filepath.suffix == '.py':
+            # if there is a directory with the same stem (package), prefer the package
+            sibling_dir = filepath.with_suffix('')
+            init_file = sibling_dir / '__init__.py'
+            if sibling_dir.exists() and init_file.exists():
+                return False
             return True
         
         # Accept directories with __init__.py
         if filepath.is_dir():
             init_file = filepath / '__init__.py'
             if init_file.exists():
+                return True
+        
+        return False
+    
+    def _should_watch_file(self, filepath: Path) -> bool:
+        """
+        Check if a file should be watched for hot-reload based on configured patterns.
+        
+        Returns:
+            True if file matches watch_patterns and not in ignore_patterns
+        """
+        # Get patterns from config
+        settings = self.plugin_config.get('settings', {})
+        watch_patterns = settings.get('watch_patterns', ['*.py', '*.yaml', '*.yml'])
+        ignore_patterns = settings.get('ignore_patterns', ['README.md', '*.md', '__pycache__', '*.pyc', '.git'])
+        
+        filename = filepath.name
+        filepath_str = str(filepath)
+        
+        # Check ignore patterns first
+        for pattern in ignore_patterns:
+            if fnmatch.fnmatch(filename, pattern) or pattern in filepath_str:
+                return False
+        
+        # Check if matches any watch pattern
+        for pattern in watch_patterns:
+            if fnmatch.fnmatch(filename, pattern):
                 return True
         
         return False
@@ -142,14 +181,47 @@ class PluginManager:
                         file_path = str(item / '__init__.py')
                     
                     # Track file modification time for hot reload
-                    self._file_mtimes[file_path] = os.path.getmtime(file_path)
+                    # If this is a package, watch all matching files inside the package
+                    try:
+                        if item.is_dir():
+                            pkg_path = Path(item)
+                            # Walk through all files in the package
+                            for f in pkg_path.rglob('*'):
+                                if not f.is_file():
+                                    continue
+                                # Check if file should be watched based on patterns
+                                if not self._should_watch_file(f):
+                                    continue
+                                p = str(f)
+                                try:
+                                    self._file_mtimes[p] = os.path.getmtime(p)
+                                except Exception:
+                                    pass
+                        else:
+                            self._file_mtimes[file_path] = os.path.getmtime(file_path)
+                    except Exception:
+                        # Fallback to tracking the entrypoint file
+                        try:
+                            self._file_mtimes[file_path] = os.path.getmtime(file_path)
+                        except Exception:
+                            pass
                     
-                    # Load module
-                    if module_name in sys.modules:
-                        # Reload if already loaded
-                        module = importlib.reload(sys.modules[module_name])
-                    else:
-                        module = importlib.import_module(module_name)
+                    # Load module with full cache invalidation to ensure fresh code
+                    try:
+                        importlib.invalidate_caches()
+                    except Exception:
+                        pass
+
+                    # Remove the module and its submodules from sys.modules to avoid stale references
+                    for mod in list(sys.modules.keys()):
+                        if mod == module_name or mod.startswith(module_name + '.'):
+                            try:
+                                del sys.modules[mod]
+                            except KeyError:
+                                pass
+
+                    # Import module fresh
+                    module = importlib.import_module(module_name)
                     
                     # Find all plugin classes in the module
                     for name, obj in inspect.getmembers(module, inspect.isclass):
@@ -205,8 +277,24 @@ class PluginManager:
                 
                 # Pass plugin-specific config
                 plugin_config = self.plugin_config.get('plugins', {}).get(plugin_name, {}).get('config', {})
-                if plugin_config:
-                    plugin._config = plugin_config
+
+                # Also allow a plugin-local `plugin.yaml` inside the plugin package directory
+                try:
+                    module_name = plugin_class.__module__.split('.')[-1]
+                    package_config_file = os.path.join(self.plugin_dirs[0], module_name, 'plugin.yaml')
+                    if os.path.exists(package_config_file):
+                        with open(package_config_file, 'r') as f:
+                            package_cfg = yaml.safe_load(f) or {}
+                        # Merge configs: package config overrides top-level config
+                        merged = {**(plugin_config or {}), **package_cfg}
+                        plugin._config = merged
+                    else:
+                        if plugin_config:
+                            plugin._config = plugin_config
+                except Exception:
+                    # Fallback to top-level config if anything goes wrong
+                    if plugin_config:
+                        plugin._config = plugin_config
                 
                 # Store in appropriate registry
                 self._plugins[plugin_name] = plugin
@@ -398,7 +486,7 @@ class PluginManager:
                             error=str(e)
                         )
                 
-                # Also check for new files
+                # Also check for new files (recursively in plugin packages)
                 for plugin_dir in self.plugin_dirs:
                     if not os.path.exists(plugin_dir):
                         continue
@@ -410,13 +498,26 @@ class PluginManager:
                         
                         if item.is_file():
                             file_path = str(item)
+                            # New top-level file detected
+                            if file_path not in self._file_mtimes:
+                                changed_files.append(file_path)
+                                self._file_mtimes[file_path] = os.path.getmtime(file_path)
                         else:
-                            file_path = str(item / '__init__.py')
-                        
-                        # New file detected
-                        if file_path not in self._file_mtimes:
-                            changed_files.append(file_path)
-                            self._file_mtimes[file_path] = os.path.getmtime(file_path)
+                            # Check for new files inside plugin package
+                            pkg_path = Path(item)
+                            for f in pkg_path.rglob('*'):
+                                if not f.is_file():
+                                    continue
+                                # Check if file should be watched
+                                if not self._should_watch_file(f):
+                                    continue
+                                p = str(f)
+                                if p not in self._file_mtimes:
+                                    changed_files.append(p)
+                                    try:
+                                        self._file_mtimes[p] = os.path.getmtime(p)
+                                    except Exception:
+                                        pass
                 
                 if changed_files:
                     self._logger.info(
