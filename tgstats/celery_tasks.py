@@ -132,7 +132,7 @@ if not check_timescaledb_available():
 )
 def refresh_materialized_view(self, view_name: str) -> Dict[str, Any]:
     """Refresh a materialized view and log the results."""
-    start_time = datetime.utcnow()
+    start_time = datetime.now(timezone.utc)
     
     # Add jitter to avoid thundering herd
     jitter = random.uniform(CELERY_JITTER_MIN, CELERY_JITTER_MAX)
@@ -161,7 +161,7 @@ def refresh_materialized_view(self, view_name: str) -> Dict[str, Any]:
             ).fetchone()
             rows_after = result_after[0] if result_after else 0
             
-            duration = (datetime.utcnow() - start_time).total_seconds()
+            duration = (datetime.now(timezone.utc) - start_time).total_seconds()
             
             result = {
                 "view_name": view_name,
@@ -169,7 +169,7 @@ def refresh_materialized_view(self, view_name: str) -> Dict[str, Any]:
                 "rows_before": rows_before,
                 "rows_after": rows_after,
                 "rows_changed": rows_after - rows_before,
-                "completed_at": datetime.utcnow().isoformat()
+                "completed_at": datetime.now(timezone.utc).isoformat()
             }
             
             logger.info(
@@ -217,7 +217,7 @@ def retention_preview(self, chat_id: int) -> Dict[str, Any]:
             text_retention_days, metadata_retention_days, store_text, timezone = settings_result
             
             # Calculate cutoff dates
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             text_cutoff = now - timedelta(days=text_retention_days)
             metadata_cutoff = now - timedelta(days=metadata_retention_days)
             

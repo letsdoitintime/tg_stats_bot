@@ -1,6 +1,11 @@
-"""Common helper functions for database upserts."""
+"""Common helper functions for database upserts.
 
-import logging
+⚠️  DEPRECATED: These functions are deprecated and will be removed in v0.3.0.
+    Use ChatService, UserService instead of these helper functions.
+"""
+
+import warnings
+import structlog
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -12,12 +17,15 @@ from telegram import Chat as TelegramChat, User as TelegramUser
 from ..models import Chat, User, Membership
 from ..enums import ChatType, MembershipStatus
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def upsert_chat(session: AsyncSession, tg_chat: TelegramChat) -> Chat:
     """
     Upsert a chat record from Telegram chat object.
+    
+    .. deprecated:: 0.2.0
+        Use :meth:`ChatService.get_or_create_chat` instead.
     
     Args:
         session: Database session
@@ -26,13 +34,19 @@ async def upsert_chat(session: AsyncSession, tg_chat: TelegramChat) -> Chat:
     Returns:
         Chat model instance
     """
+    warnings.warn(
+        "upsert_chat is deprecated, use ChatService.get_or_create_chat instead",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     chat_data = {
         "chat_id": tg_chat.id,
         "title": tg_chat.title,
         "username": tg_chat.username,
         "type": ChatType(tg_chat.type),
         "is_forum": getattr(tg_chat, "is_forum", False),
-        "updated_at": datetime.utcnow(),
+        "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
     }
     
     # Use PostgreSQL UPSERT
@@ -49,7 +63,7 @@ async def upsert_chat(session: AsyncSession, tg_chat: TelegramChat) -> Chat:
     )
     
     await session.execute(stmt)
-    await session.commit()
+    await session.flush()
     
     # Return the chat object
     result = await session.execute(
@@ -62,6 +76,9 @@ async def upsert_user(session: AsyncSession, tg_user: TelegramUser) -> User:
     """
     Upsert a user record from Telegram user object.
     
+    .. deprecated:: 0.2.0
+        Use :meth:`UserService.get_or_create_user` instead.
+    
     Args:
         session: Database session
         tg_user: Telegram user object
@@ -69,6 +86,12 @@ async def upsert_user(session: AsyncSession, tg_user: TelegramUser) -> User:
     Returns:
         User model instance
     """
+    warnings.warn(
+        "upsert_user is deprecated, use UserService.get_or_create_user instead",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     user_data = {
         "user_id": tg_user.id,
         "username": tg_user.username,
@@ -76,7 +99,7 @@ async def upsert_user(session: AsyncSession, tg_user: TelegramUser) -> User:
         "last_name": tg_user.last_name,
         "is_bot": tg_user.is_bot,
         "language_code": tg_user.language_code,
-        "updated_at": datetime.utcnow(),
+        "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
     }
     
     # Use PostgreSQL UPSERT
@@ -94,7 +117,7 @@ async def upsert_user(session: AsyncSession, tg_user: TelegramUser) -> User:
     )
     
     await session.execute(stmt)
-    await session.commit()
+    await session.flush()
     
     # Return the user object
     result = await session.execute(
@@ -113,6 +136,9 @@ async def ensure_membership(
     """
     Ensure membership record exists for a user in a chat.
     
+    .. deprecated:: 0.2.0
+        Use :meth:`UserService.ensure_membership` instead.
+    
     Args:
         session: Database session
         chat_id: Chat ID
@@ -123,6 +149,12 @@ async def ensure_membership(
     Returns:
         Membership model instance
     """
+    warnings.warn(
+        "ensure_membership is deprecated, use UserService.ensure_membership instead",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
     # Convert timezone-aware datetime to UTC naive if provided
     if joined_at_if_missing and joined_at_if_missing.tzinfo:
         joined_at_if_missing = joined_at_if_missing.astimezone(timezone.utc).replace(tzinfo=None)
@@ -141,7 +173,7 @@ async def ensure_membership(
         membership_data = {
             "chat_id": chat_id,
             "user_id": user_id,
-            "joined_at": joined_at_if_missing or datetime.utcnow(),
+            "joined_at": joined_at_if_missing or datetime.now(timezone.utc).replace(tzinfo=None),
             "status_current": status,
         }
         
@@ -149,7 +181,7 @@ async def ensure_membership(
         stmt = stmt.on_conflict_do_nothing()
         
         await session.execute(stmt)
-        await session.commit()
+        await session.flush()
         
         # Fetch the membership
         result = await session.execute(

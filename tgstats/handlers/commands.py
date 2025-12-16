@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..services.chat_service import ChatService
+from ..services.factory import ServiceFactory
 from ..utils.decorators import with_db_session
 from ..utils.validators import parse_boolean_argument
 from ..utils.rate_limiter import rate_limiter
@@ -46,11 +46,11 @@ async def setup_command(update: Update, context: ContextTypes.DEFAULT_TYPE, sess
         )
         return
     
-    service = ChatService(session)
+    services = ServiceFactory(session)
     
     # Create chat and setup settings
-    await service.get_or_create_chat(chat)
-    settings = await service.setup_chat(chat.id)
+    await services.chat.get_or_create_chat(chat)
+    settings = await services.chat.setup_chat(chat.id)
     
     settings_text = f"""
 📊 **Group Analytics Setup Complete!**
@@ -96,8 +96,8 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
         )
         return
     
-    service = ChatService(session)
-    settings = await service.get_chat_settings(chat.id)
+    services = ServiceFactory(session)
+    settings = await services.chat.get_chat_settings(chat.id)
     
     if not settings:
         await update.message.reply_text(
@@ -154,8 +154,8 @@ async def set_text_command(update: Update, context: ContextTypes.DEFAULT_TYPE, s
         )
         return
     
-    service = ChatService(session)
-    settings = await service.update_text_storage(chat.id, store_text)
+    services = ServiceFactory(session)
+    settings = await services.chat.update_text_storage(chat.id, store_text)
     
     if not settings:
         await update.message.reply_text(
@@ -202,8 +202,8 @@ async def set_reactions_command(update: Update, context: ContextTypes.DEFAULT_TY
         )
         return
     
-    service = ChatService(session)
-    settings = await service.update_reaction_capture(chat.id, capture_reactions)
+    services = ServiceFactory(session)
+    settings = await services.chat.update_reaction_capture(chat.id, capture_reactions)
     
     if not settings:
         await update.message.reply_text(

@@ -1,11 +1,12 @@
 """Reaction handlers for the Telegram bot."""
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..db import async_session
-from ..services.reaction_service import ReactionService
+from ..services.factory import ServiceFactory
+from ..utils.decorators import with_db_session
 
 logger = structlog.get_logger(__name__)
 
@@ -29,25 +30,13 @@ async def handle_message_reaction(update: Update, context: ContextTypes.DEFAULT_
         await _handle_reaction_count(update, context)
 
 
-async def _handle_individual_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@with_db_session
+async def _handle_individual_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE, session: AsyncSession) -> None:
     """Handle individual message reaction updates (reactions added or removed)."""
     reaction_update = update.message_reaction
     
-    async with async_session() as session:
-        try:
-            service = ReactionService(session)
-            await service.process_reaction_update(reaction_update)
-            
-        except Exception as e:
-            logger.error(
-                "Error processing reaction",
-                chat_id=reaction_update.chat.id if reaction_update.chat else None,
-                user_id=reaction_update.user.id if reaction_update.user else None,
-                msg_id=reaction_update.message_id,
-                error=str(e),
-                exc_info=True
-            )
-            await session.rollback()
+    services = ServiceFactory(session)
+    await services.reaction.process_reaction_update(reaction_update)
 
 
 async def _handle_reaction_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -1,7 +1,7 @@
 """Utility functions and decorators."""
 
 from .rate_limiter import rate_limiter, RateLimiter
-from .cache import cache, CacheManager, cached
+from .cache import cache_manager, CacheManager, cached
 from .sanitizer import (
     sanitize_text,
     sanitize_command_arg,

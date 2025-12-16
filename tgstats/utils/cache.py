@@ -78,60 +78,84 @@ class CacheManager:
             return False
     
     async def invalidate_pattern(self, pattern: str) -> int:
-        """Delete all keys matching pattern."""
+        """Invalidate all keys matching pattern."""
         if not self._enabled or not self._redis:
             return 0
         
         try:
-            keys = await self._redis.keys(pattern)
+            keys = []
+            async for key in self._redis.scan_iter(match=pattern):
+                keys.append(key)
+            
             if keys:
-                return await self._redis.delete(*keys)
+                await self._redis.delete(*keys)
+                return len(keys)
+            return 0
         except Exception as e:
-            logger.error("cache_invalidate_failed", pattern=pattern, error=str(e))
-        
-        return 0
+            logger.error("cache_invalidate_pattern_failed", pattern=pattern, error=str(e))
+            return 0
     
-    async def close(self):
+    async def close(self) -> None:
         """Close Redis connection."""
         if self._redis:
             await self._redis.close()
 
 
-# Global cache instance
-cache = CacheManager()
+# Global cache manager instance
+cache_manager = CacheManager()
 
 
 def cached(key_prefix: str, ttl: Optional[int] = None):
     """
-    Decorator for caching function results.
+    Decorator for caching async function results.
+    
+    Args:
+        key_prefix: Prefix for cache keys
+        ttl: Time-to-live in seconds (uses default if not specified)
     
     Usage:
         @cached("user_stats", ttl=300)
-        async def get_user_stats(user_id: int):
-            ...
+        async def get_user_stats(user_id: int) -> dict:
+            # Expensive operation
+            return stats
     """
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            # Build cache key from function args
-            cache_key = f"{key_prefix}:{':'.join(map(str, args))}"
-            if kwargs:
-                cache_key += f":{json.dumps(kwargs, sort_keys=True)}"
+            # Generate cache key from function name and arguments
+            import hashlib
+            args_str = str(args) + str(sorted(kwargs.items()))
+            args_hash = hashlib.md5(args_str.encode()).hexdigest()
+            cache_key = f"{key_prefix}:{func.__name__}:{args_hash}"
             
             # Try to get from cache
-            cached_value = await cache.get(cache_key)
-            if cached_value is not None:
+            result = await cache_manager.get(cache_key)
+            if result is not None:
                 logger.debug("cache_hit", key=cache_key)
-                return cached_value
+                return result
             
-            # Call function
+            # Cache miss - call function
+            logger.debug("cache_miss", key=cache_key)
             result = await func(*args, **kwargs)
             
             # Store in cache
-            await cache.set(cache_key, result, ttl=ttl)
-            logger.debug("cache_miss", key=cache_key)
+            await cache_manager.set(cache_key, result, ttl)
             
             return result
-        
         return wrapper
     return decorator
+
+
+def cache_invalidate(key_prefix: str, *args, **kwargs):
+    """
+    Invalidate cache for specific function call.
+    
+    Args:
+        key_prefix: Same prefix used in @cached decorator
+        *args, **kwargs: Same arguments as cached function
+    """
+    import hashlib
+    args_str = str(args) + str(sorted(kwargs.items()))
+    args_hash = hashlib.md5(args_str.encode()).hexdigest()
+    cache_key = f"{key_prefix}:*:{args_hash}"
+    return cache_manager.invalidate_pattern(cache_key)

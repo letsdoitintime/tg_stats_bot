@@ -81,7 +81,7 @@ class MyStatisticsPlugin(StatisticsPlugin):
         limit = kwargs.get('limit', 100)
         
         # Example: Calculate date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
         
         # Example: Query messages

@@ -51,6 +51,7 @@ class Chat(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now()
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Relationships
     settings: Mapped[Optional["GroupSettings"]] = relationship(
@@ -83,6 +84,7 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now()
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Relationships
     memberships: Mapped[list["Membership"]] = relationship(
@@ -188,6 +190,7 @@ class Message(Base):
     width: Mapped[Optional[int]] = mapped_column(Integer)
     height: Mapped[Optional[int]] = mapped_column(Integer)
     thumbnail_file_id: Mapped[Optional[str]] = mapped_column(String(255))
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
     # Relationships
     chat: Mapped["Chat"] = relationship("Chat", back_populates="messages")
@@ -201,6 +204,13 @@ class Message(Base):
     __table_args__ = (
         Index("ix_messages_chat_date", "chat_id", "date"),
         Index("ix_messages_chat_user_date", "chat_id", "user_id", "date"),
+        Index("ix_messages_forward_from", "forward_from_user_id"),
+        Index("ix_messages_via_bot", "via_bot_id"),
+        Index("ix_messages_media_type", "media_type"),
+        Index("ix_messages_media_group_id", "media_group_id"),
+        Index("ix_messages_reply_chain", "chat_id", "reply_to_msg_id"),
+        Index("ix_messages_thread_id", "thread_id"),
+        Index("ix_messages_deleted_at", "deleted_at"),
     )
 
 

@@ -1,6 +1,6 @@
 """Heatmap repository for activity analysis queries."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Tuple, Optional
 
 from sqlalchemy import select, func, text
@@ -32,7 +32,7 @@ class HeatmapRepository(BaseRepository[Message]):
         Returns:
             Total message count
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now() - timedelta(days=days)
         
         query = select(func.count(Message.msg_id)).where(
             Message.chat_id == chat_id,
@@ -62,7 +62,7 @@ class HeatmapRepository(BaseRepository[Message]):
         Returns:
             List of tuples (hour, day_of_week, count)
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now() - timedelta(days=days)
         
         # Use materialized view for instant results instead of scanning messages table
         # This reduces CPU from 200% to near zero by avoiding EXTRACT() on every row
@@ -118,7 +118,7 @@ class HeatmapRepository(BaseRepository[Message]):
         Returns:
             Tuple of (hour, message_count) or None
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now() - timedelta(days=days)
         
         # Use materialized view for performance
         is_timescale = await self._is_timescaledb_available()
@@ -157,7 +157,7 @@ class HeatmapRepository(BaseRepository[Message]):
         Returns:
             Tuple of (day_of_week, message_count) or None
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now() - timedelta(days=days)
         
         # Use materialized view for performance
         is_timescale = await self._is_timescaledb_available()

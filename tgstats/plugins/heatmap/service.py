@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
 from .repository import HeatmapRepository
-from ...utils.cache import cache
+from ...utils.cache import cache_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -69,7 +69,7 @@ class HeatmapService:
         # Try cache first
         if use_cache:
             cache_key = self._get_cache_key(chat_id, days)
-            cached_data = await cache.get(cache_key)
+            cached_data = await cache_manager.get(cache_key)
             if cached_data:
                 logger.info(
                     "heatmap_cache_hit",
@@ -100,7 +100,7 @@ class HeatmapService:
         # Cache the results
         if use_cache:
             cache_key = self._get_cache_key(chat_id, days)
-            await cache.set(
+            await cache_manager.set(
                 cache_key,
                 json.dumps(serializable_data),
                 ttl=self.CACHE_TTL

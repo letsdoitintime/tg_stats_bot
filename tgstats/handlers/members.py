@@ -1,17 +1,18 @@
 """Member handlers for tracking user joins/leaves."""
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..db import async_session
-from ..services.chat_service import ChatService
-from ..services.user_service import UserService
+from ..services.factory import ServiceFactory
+from ..utils.decorators import with_db_session
 
 logger = structlog.get_logger(__name__)
 
 
-async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@with_db_session
+async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_TYPE, session: AsyncSession) -> None:
     """Handle new members joining the chat."""
     if not update.message or not update.message.new_chat_members:
         return
@@ -19,40 +20,29 @@ async def handle_new_chat_members(update: Update, context: ContextTypes.DEFAULT_
     chat = update.message.chat
     join_date = update.message.date
     
-    async with async_session() as session:
-        try:
-            chat_service = ChatService(session)
-            user_service = UserService(session)
-            
-            # Upsert chat
-            await chat_service.get_or_create_chat(chat)
-            
-            # Process each new member
-            for new_user in update.message.new_chat_members:
-                # Upsert user
-                await user_service.get_or_create_user(new_user)
-                
-                # Handle join
-                await user_service.handle_user_join(chat.id, new_user.id, join_date)
-                
-                logger.info(
-                    "Member joined",
-                    chat_id=chat.id,
-                    user_id=new_user.id,
-                    username=new_user.username
-                )
-            
-        except Exception as e:
-            logger.error(
-                "Error processing new chat members",
-                chat_id=chat.id,
-                error=str(e),
-                exc_info=True
-            )
-            await session.rollback()
+    services = ServiceFactory(session)
+    
+    # Upsert chat
+    await services.chat.get_or_create_chat(chat)
+    
+    # Process each new member
+    for new_user in update.message.new_chat_members:
+        # Upsert user
+        await services.user.get_or_create_user(new_user)
+        
+        # Handle join
+        await services.user.handle_user_join(chat.id, new_user.id, join_date)
+        
+        logger.info(
+            "Member joined",
+            chat_id=chat.id,
+            user_id=new_user.id,
+            username=new_user.username
+        )
 
 
-async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@with_db_session
+async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE, session: AsyncSession) -> None:
     """Handle member leaving the chat."""
     if not update.message or not update.message.left_chat_member:
         return
@@ -61,37 +51,25 @@ async def handle_left_chat_member(update: Update, context: ContextTypes.DEFAULT_
     left_user = update.message.left_chat_member
     leave_date = update.message.date
     
-    async with async_session() as session:
-        try:
-            chat_service = ChatService(session)
-            user_service = UserService(session)
-            
-            # Upsert chat and user
-            await chat_service.get_or_create_chat(chat)
-            await user_service.get_or_create_user(left_user)
-            
-            # Handle leave
-            await user_service.handle_user_leave(chat.id, left_user.id, leave_date)
-            
-            logger.info(
-                "Member left",
-                chat_id=chat.id,
-                user_id=left_user.id,
-                username=left_user.username
-            )
-            
-        except Exception as e:
-            logger.error(
-                "Error processing left chat member",
-                chat_id=chat.id,
-                user_id=left_user.id if left_user else None,
-                error=str(e),
-                exc_info=True
-            )
-            await session.rollback()
+    services = ServiceFactory(session)
+    
+    # Upsert chat and user
+    await services.chat.get_or_create_chat(chat)
+    await services.user.get_or_create_user(left_user)
+    
+    # Handle leave
+    await services.user.handle_user_leave(chat.id, left_user.id, leave_date)
+    
+    logger.info(
+        "Member left",
+        chat_id=chat.id,
+        user_id=left_user.id,
+        username=left_user.username
+    )
 
 
-async def handle_chat_member_updated(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@with_db_session
+async def handle_chat_member_updated(update: Update, context: ContextTypes.DEFAULT_TYPE, session: AsyncSession) -> None:
     """Handle chat member status updates."""
     if not update.chat_member:
         return

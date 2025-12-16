@@ -1,29 +1,40 @@
 # TG Stats Bot Requirements
+# Pinned versions for production stability
+# Generated: 2025-12-16
+
 # Core dependencies
-python-telegram-bot[all]>=22.5
-sqlalchemy>=2.0
-alembic>=1.13
-psycopg[binary]>=3.1
-asyncpg>=0.30.0
-pydantic>=2.0
-pydantic-settings>=2.0
-fastapi[all]>=0.100
-uvicorn>=0.20
-structlog>=23.0
-emoji>=2.8
-python-dotenv>=1.0
+python-telegram-bot[all]==22.5.*
+sqlalchemy==2.0.*
+alembic==1.13.*
+psycopg[binary]==3.1.*
+asyncpg==0.30.*
+pydantic==2.10.*
+pydantic-settings==2.7.*
+fastapi[all]==0.115.*
+uvicorn==0.32.*
+structlog==24.4.*
+emoji==2.14.*
+python-dotenv==1.0.*
 
 # Step 2 additions
-python-dateutil>=2.8
-tzdata>=2023.3
-httpx>=0.25
-celery>=5.3
-redis>=5.0
-jinja2>=3.1
-pyyaml>=6.0
+python-dateutil==2.9.*
+tzdata==2024.2
+httpx==0.28.*
+celery==5.4.*
+redis==5.2.*
+jinja2==3.1.*
+pyyaml==6.0.*
 
 # Performance and monitoring
-prometheus-client>=0.19.0
+prometheus-client==0.21.*
+
+# Distributed tracing (optional)
+opentelemetry-api==1.28.*
+opentelemetry-sdk==1.28.*
+opentelemetry-instrumentation-fastapi==0.49b2
+opentelemetry-instrumentation-sqlalchemy==0.49b2
+opentelemetry-instrumentation-redis==0.49b2
+opentelemetry-exporter-otlp==1.28.*
 
 # Development dependencies (optional)
 # Install with: pip install -r requirements.txt -r requirements-dev.txt

@@ -73,7 +73,7 @@ class WordCloudPlugin(StatisticsPlugin):
             Dictionary with word frequencies and metadata
         """
         # Calculate date range
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
         
         # Query messages with text

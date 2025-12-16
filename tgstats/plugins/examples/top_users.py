@@ -83,7 +83,7 @@ class TopUsersPlugin(CommandPlugin, StatisticsPlugin):
         Returns:
             User activity statistics
         """
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
         
         # Query top users by message count

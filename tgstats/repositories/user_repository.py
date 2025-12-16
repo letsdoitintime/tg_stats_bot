@@ -1,6 +1,6 @@
 """User repository for database operations."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import select
@@ -47,7 +47,7 @@ class UserRepository(BaseRepository[User]):
             "can_join_groups": getattr(tg_user, "can_join_groups", None),
             "can_read_all_group_messages": getattr(tg_user, "can_read_all_group_messages", None),
             "supports_inline_queries": getattr(tg_user, "supports_inline_queries", None),
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
         }
         
         stmt = insert(User).values(**user_data)

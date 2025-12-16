@@ -59,7 +59,7 @@ class MembershipRepository(BaseRepository[Membership]):
             membership_data = {
                 "chat_id": chat_id,
                 "user_id": user_id,
-                "joined_at": joined_at_if_missing or datetime.utcnow(),
+                "joined_at": joined_at_if_missing or datetime.now(timezone.utc).replace(tzinfo=None),
                 "status_current": status,
             }
             

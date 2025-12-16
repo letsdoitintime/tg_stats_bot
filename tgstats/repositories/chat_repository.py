@@ -1,6 +1,6 @@
 """Chat repository for database operations."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import select
@@ -82,7 +82,7 @@ class ChatRepository(BaseRepository[Chat]):
             "message_auto_delete_time": getattr(tg_chat, "message_auto_delete_time", None),
             "has_protected_content": getattr(tg_chat, "has_protected_content", None),
             "linked_chat_id": getattr(tg_chat, "linked_chat_id", None),
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
         }
         
         stmt = insert(Chat).values(**chat_data)

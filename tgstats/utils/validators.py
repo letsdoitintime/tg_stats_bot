@@ -1,6 +1,6 @@
 """Validation utilities."""
 
-from typing import Optional
+from typing import Optional, Any
 from ..core.exceptions import ValidationError
 
 
@@ -32,7 +32,7 @@ def parse_boolean_argument(arg: Optional[str]) -> bool:
         )
 
 
-def validate_chat_id(chat_id: any) -> int:
+def validate_chat_id(chat_id: Any) -> int:
     """
     Validate and convert chat ID.
     

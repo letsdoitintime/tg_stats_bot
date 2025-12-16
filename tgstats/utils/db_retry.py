@@ -1,7 +1,7 @@
 """Database retry utilities for handling transient failures."""
 
 import asyncio
-import logging
+import structlog
 from functools import wraps
 from typing import TypeVar, Callable, Any
 
@@ -13,7 +13,7 @@ from sqlalchemy.exc import (
 
 from ..core.config import settings
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 T = TypeVar('T')
 

@@ -58,9 +58,10 @@ class UserStats(BaseModel):
 
 class UserStatsResponse(BaseModel):
     """User statistics list response."""
-    users: List[UserStats]
-    total_messages: int
-    period_days: int
+    items: List[UserStats]
+    page: int
+    per_page: int
+    total: int
 
 
 class RetentionPreviewRequest(BaseModel):
@@ -71,9 +72,11 @@ class RetentionPreviewRequest(BaseModel):
 class RetentionPreviewResponse(BaseModel):
     """Response for retention preview."""
     chat_id: int
-    text_rows_to_delete: int
-    metadata_rows_to_delete: int
-    oldest_text_date: Optional[datetime]
-    oldest_metadata_date: Optional[datetime]
     text_retention_days: int
     metadata_retention_days: int
+    store_text: bool
+    text_removal_count: int
+    metadata_removal_count: int
+    reaction_removal_count: int
+    text_cutoff_date: str
+    metadata_cutoff_date: str

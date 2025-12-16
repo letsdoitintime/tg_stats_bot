@@ -214,7 +214,7 @@ class QueryPerformanceTracker:
         self._query_times[query_name].append({
             'duration': duration,
             'row_count': row_count,
-            'timestamp': datetime.utcnow()
+            'timestamp': datetime.now(timezone.utc)
         })
         
         # Log slow queries

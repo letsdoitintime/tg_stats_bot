@@ -22,26 +22,21 @@ from ..db import get_session
 from ..models import Chat, GroupSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..celery_tasks import retention_preview
+from ..schemas.api import (
+    ChatSummary,
+    ChatSettings,
+    PeriodSummary,
+    TimeseriesPoint,
+    UserStats,
+    UserStatsResponse,
+    RetentionPreviewResponse,
+)
 from .health import router as health_router
 from .error_handlers import register_error_handlers
+from .routers import webhook
+from .routers.webhook import set_bot_application, get_bot_application
 
 logger = structlog.get_logger(__name__)
-
-# Global variable to store the bot application
-bot_app: Application = None
-
-
-def set_bot_application(application: Application) -> None:
-    """Set the bot application instance for webhook handling."""
-    global bot_app
-    bot_app = application
-
-
-def get_bot_application() -> Application:
-    """Get the bot application instance."""
-    if bot_app is None:
-        raise HTTPException(status_code=500, detail="Bot application not initialized")
-    return bot_app
 
 
 # Create FastAPI app
@@ -94,80 +89,15 @@ async def limit_request_size(request: Request, call_next):
             )
     return await call_next(request)
 
-# Include health check router
+# Include routers
 app.include_router(health_router)
+app.include_router(webhook.router)
 
 # Register error handlers
 register_error_handlers(app)
 
 # Templates for minimal UI
 templates = Jinja2Templates(directory="tgstats/web/templates")
-
-# Pydantic models for API responses
-class ChatSummary(BaseModel):
-    chat_id: int
-    title: Optional[str]
-    msg_count_30d: int
-    avg_dau_30d: float
-
-
-class ChatSettings(BaseModel):
-    chat_id: int
-    store_text: bool
-    text_retention_days: int
-    metadata_retention_days: int
-    timezone: str
-    locale: str
-    capture_reactions: bool
-
-
-class PeriodSummary(BaseModel):
-    total_messages: int
-    unique_users: int
-    avg_daily_users: float
-    new_users: int
-    left_users: int
-    start_date: str
-    end_date: str
-    days: int
-
-
-class TimeseriesPoint(BaseModel):
-    day: str
-    value: int
-
-
-class UserStats(BaseModel):
-    user_id: int
-    username: Optional[str]
-    first_name: Optional[str]
-    last_name: Optional[str]
-    msg_count: int
-    activity_percentage: float
-    active_days_ratio: str
-    last_message: Optional[str]
-    days_since_joined: Optional[int]
-    left: bool
-
-
-class UserStatsResponse(BaseModel):
-    items: List[UserStats]
-    page: int
-    per_page: int
-    total: int
-
-
-class RetentionPreview(BaseModel):
-    chat_id: int
-    text_retention_days: int
-    metadata_retention_days: int
-    store_text: bool
-    text_removal_count: int
-    metadata_removal_count: int
-    reaction_removal_count: int
-    text_cutoff_date: str
-    metadata_cutoff_date: str
-
 
 # Auth dependency
 async def verify_admin_token(x_admin_token: Optional[str] = Header(None)):
@@ -273,37 +203,7 @@ def check_timescaledb_available(session: Session) -> bool:
         return False
 
 
-# Original webhook endpoints
-@app.get("/healthz")
-async def health_check() -> Dict[str, str]:
-    """Health check endpoint."""
-    return {"status": "healthy", "service": "tg-stats-bot"}
-
-
-@app.post("/tg/webhook")
-async def telegram_webhook(
-    request: Request,
-    bot_application: Application = Depends(get_bot_application)
-) -> Dict[str, str]:
-    """Telegram webhook endpoint."""
-    try:
-        update_data = await request.json()
-        logger.debug("Received webhook update", extra={"update_data": update_data})
-        
-        update = Update.de_json(update_data, bot_application.bot)
-        if update is None:
-            logger.warning("Could not parse update from webhook data")
-            raise HTTPException(status_code=400, detail="Invalid update data")
-        
-        await bot_application.process_update(update)
-        return {"status": "ok"}
-        
-    except Exception as e:
-        logger.error("Error processing webhook update", extra={"error": str(e)}, exc_info=True)
-        raise HTTPException(status_code=500, detail="Error processing update")
-
-
-# New Analytics API endpoints
+# Analytics API endpoints
 @app.get("/api/chats", response_model=List[ChatSummary])
 async def get_chats(
     session: Session = Depends(get_session),
@@ -730,7 +630,7 @@ async def get_chat_users(
     )
 
 
-@app.get("/api/chats/{chat_id}/retention/preview", response_model=RetentionPreview)
+@app.get("/api/chats/{chat_id}/retention/preview", response_model=RetentionPreviewResponse)
 async def get_retention_preview(
     chat_id: int,
     session: Session = Depends(get_session),
@@ -744,7 +644,7 @@ async def get_retention_preview(
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     
-    return RetentionPreview(**result)
+    return RetentionPreviewResponse(**result)
 
 
 # Internal API endpoints for UI (no auth required)

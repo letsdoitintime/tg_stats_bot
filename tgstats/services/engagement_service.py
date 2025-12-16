@@ -4,7 +4,7 @@ Calculates engagement scores for users based on their activity patterns,
 message content, and interaction with the community.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
@@ -134,7 +134,7 @@ class EngagementScoringService:
             List of EngagementScore objects sorted by total score
         """
         # Get active users
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now() - timedelta(days=days)
         
         query = select(Message.user_id, func.count(Message.msg_id).label('count'))\
             .where(Message.chat_id == chat_id)\
@@ -179,7 +179,7 @@ class EngagementScoringService:
         thread_id: Optional[int] = None,
     ) -> EngagementMetrics:
         """Get detailed engagement metrics for a user."""
-        since = datetime.utcnow() - timedelta(days=days)
+        since = datetime.now() - timedelta(days=days)
         
         # Message statistics
         msg_query = select(
