@@ -119,7 +119,21 @@ async def run_migrations():
 
 async def error_handler(update: object, context) -> None:
     """Enhanced global error handler with detailed logging."""
-    # Format the full traceback
+    # Import here to avoid circular dependency issues
+    from telegram.error import NetworkError, TimedOut
+    
+    # Check if it's a network-related error that should be handled quietly
+    if isinstance(context.error, (NetworkError, TimedOut)):
+        logger.warning(
+            "network_error_occurred",
+            error_type=type(context.error).__name__,
+            error=str(context.error),
+            update_id=update.update_id if hasattr(update, 'update_id') else None,
+        )
+        # These errors are typically transient and automatically retried
+        return
+    
+    # Format the full traceback for other errors
     tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
     tb_string = ''.join(tb_list)
     
@@ -248,7 +262,11 @@ async def run_polling_mode(application: Application) -> None:
     # Setup plugins
     await setup_plugins(application)
     
-    await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+    # Start polling with explicit timeout configuration
+    await application.updater.start_polling(
+        allowed_updates=Update.ALL_TYPES,
+        timeout=settings.bot_get_updates_timeout,  # Long-polling timeout for getUpdates
+    )
     
     logger.info("Bot is running in polling mode. Press Ctrl+C to stop.")
     

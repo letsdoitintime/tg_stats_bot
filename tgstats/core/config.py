@@ -56,11 +56,15 @@ class Settings(BaseSettings):
     db_retry_delay: float = Field(default=1.0, env="DB_RETRY_DELAY")
     
     # Bot connection settings
+    # Note: bot_read_timeout should be > 30s for Telegram's long-polling to work properly
     bot_connection_pool_size: int = Field(default=8, env="BOT_CONNECTION_POOL_SIZE")
-    bot_read_timeout: float = Field(default=10.0, env="BOT_READ_TIMEOUT")
+    bot_read_timeout: float = Field(default=35.0, env="BOT_READ_TIMEOUT")
     bot_write_timeout: float = Field(default=10.0, env="BOT_WRITE_TIMEOUT")
     bot_connect_timeout: float = Field(default=10.0, env="BOT_CONNECT_TIMEOUT")
-    bot_pool_timeout: float = Field(default=5.0, env="BOT_POOL_TIMEOUT")
+    bot_pool_timeout: float = Field(default=10.0, env="BOT_POOL_TIMEOUT")
+    
+    # Network retry settings for bot updates
+    bot_get_updates_timeout: int = Field(default=30, env="BOT_GET_UPDATES_TIMEOUT")  # Long-polling timeout
     
     # Celery settings
     celery_task_max_retries: int = Field(default=3, env="CELERY_TASK_MAX_RETRIES")
