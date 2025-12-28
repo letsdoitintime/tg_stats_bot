@@ -44,7 +44,7 @@ from telegram.ext import (
 )
 from telegram.request import HTTPXRequest
 
-from .config import settings
+from .core.config import settings
 from .core.config_validator import validate_config
 from .utils.logging import setup_logging, configure_third_party_logging
 from .handlers.commands import (

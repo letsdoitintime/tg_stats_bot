@@ -13,7 +13,7 @@ logger = structlog.get_logger(__name__)
 
 # Import after logger setup to avoid circular imports
 try:
-    from .config import settings
+    from .core.config import settings
     from .db import get_sync_session
     from .core.constants import (
         TASK_TIME_LIMIT,
@@ -28,7 +28,7 @@ except ImportError:
     import os
     import sys
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from tgstats.config import settings
+    from tgstats.core.config import settings
     from tgstats.db import get_sync_session
     from tgstats.core.constants import (
         TASK_TIME_LIMIT,
