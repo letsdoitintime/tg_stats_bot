@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     bot_get_updates_timeout: int = Field(
         default=30, env="BOT_GET_UPDATES_TIMEOUT"
     )  # Long-polling timeout
-    
+
     # Network loop retry configuration
     bot_network_retry_attempts: int = Field(default=5, env="BOT_NETWORK_RETRY_ATTEMPTS")
     bot_network_retry_delay: float = Field(default=1.0, env="BOT_NETWORK_RETRY_DELAY")
