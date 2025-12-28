@@ -85,13 +85,17 @@ class TestVerifyAdminTokenDependency:
     async def test_verify_with_valid_token(self, monkeypatch):
         """Test authentication with valid token."""
         from tgstats.core import config
+        from tgstats.web import auth_enhanced
 
         # Mock settings
         mock_settings = type("obj", (object,), {"admin_api_token": "test_token"})()
         monkeypatch.setattr(config, "settings", mock_settings)
 
+        # Mock token_manager.verify_token to return True
+        monkeypatch.setattr(auth_enhanced.token_manager, "verify_token", lambda token, ip: True)
+
         # Should succeed with valid token
-        result = await verify_admin_token(x_admin_token="test_token")
+        result = await verify_admin_token(x_admin_token="test_token", x_forwarded_for=None)
         assert result == "test_token"
 
     async def test_verify_without_token(self, monkeypatch):
@@ -103,6 +107,6 @@ class TestVerifyAdminTokenDependency:
 
         # Should raise HTTPException
         with pytest.raises(HTTPException) as exc_info:
-            await verify_admin_token(x_admin_token=None)
+            await verify_admin_token(x_admin_token=None, x_forwarded_for=None)
 
         assert exc_info.value.status_code == 401
