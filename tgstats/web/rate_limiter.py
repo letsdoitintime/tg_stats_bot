@@ -217,15 +217,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 try:
                     # Extract number from message like "Retry after 45 seconds"
                     import re
+
                     match = re.search(r"Retry after (\d+) seconds", error_message)
                     if match:
                         retry_after = match.group(1)
                 except:
                     pass
 
-            raise HTTPException(
+            # Return JSONResponse instead of raising HTTPException
+            # to work properly with BaseHTTPMiddleware
+            from starlette.responses import JSONResponse
+
+            return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=error_message,
+                content={"detail": error_message},
                 headers={"Retry-After": retry_after},
             )
 

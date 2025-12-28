@@ -14,9 +14,7 @@ class TestAPIRateLimiter:
 
     def test_rate_limiter_initialization(self):
         """Test rate limiter initializes correctly."""
-        limiter = APIRateLimiter(
-            requests_per_minute=10, requests_per_hour=100, burst_size=5
-        )
+        limiter = APIRateLimiter(requests_per_minute=10, requests_per_hour=100, burst_size=5)
 
         assert limiter.requests_per_minute == 10
         assert limiter.requests_per_hour == 100
@@ -106,9 +104,7 @@ class TestAPIRateLimiter:
 
     def test_burst_limit_exceeded(self):
         """Test that burst limit is enforced."""
-        limiter = APIRateLimiter(
-            requests_per_minute=100, requests_per_hour=1000, burst_size=3
-        )
+        limiter = APIRateLimiter(requests_per_minute=100, requests_per_hour=1000, burst_size=3)
 
         request = MagicMock(spec=Request)
         request.client.host = "192.168.1.1"
