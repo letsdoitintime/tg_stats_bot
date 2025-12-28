@@ -1,5 +1,6 @@
 """API rate limiting middleware for FastAPI endpoints."""
 
+import hashlib
 import time
 from collections import defaultdict
 from typing import Optional, Dict, Tuple
@@ -66,8 +67,6 @@ class APIRateLimiter:
         auth_token = request.headers.get("X-Admin-Token") or request.headers.get("X-API-Token")
         if auth_token:
             # Use last 8 chars of token hash for identification
-            import hashlib
-
             token_hash = hashlib.sha256(auth_token.encode()).hexdigest()
             return f"token_{token_hash[:8]}"
 
