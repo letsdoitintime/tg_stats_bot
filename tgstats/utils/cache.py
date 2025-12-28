@@ -1,7 +1,6 @@
 """Caching utilities for frequently accessed data."""
 
 import json
-import pickle
 from typing import Any, Optional, Callable
 from functools import wraps
 import structlog
@@ -45,22 +44,29 @@ class CacheManager:
         try:
             value = await self._redis.get(key)
             if value:
-                return pickle.loads(value)
+                return json.loads(value)
         except Exception as e:
             logger.error("cache_get_failed", key=key, error=str(e))
         
         return None
     
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
-        """Set value in cache with optional TTL."""
+        """
+        Set value in cache with optional TTL.
+        
+        Note: Only JSON-serializable values are supported for security.
+        """
         if not self._enabled or not self._redis:
             return False
         
         try:
             ttl = ttl or settings.cache_ttl
-            serialized = pickle.dumps(value)
+            serialized = json.dumps(value)
             await self._redis.setex(key, ttl, serialized)
             return True
+        except (TypeError, ValueError) as e:
+            logger.error("cache_set_failed_serialization", key=key, error=str(e))
+            return False
         except Exception as e:
             logger.error("cache_set_failed", key=key, error=str(e))
             return False

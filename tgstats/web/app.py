@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from telegram import Update
 from telegram.ext import Application
 
-from ..config import settings
+from ..core.config import settings
 from ..db import get_session
 from ..models import Chat, GroupSettings
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,7 @@ from ..schemas.api import (
     UserStatsResponse,
     RetentionPreviewResponse,
 )
+from ..utils.sanitizer import sanitize_chat_id, is_safe_sql_input, is_safe_web_input
 from .health import router as health_router
 from .error_handlers import register_error_handlers
 from .routers import webhook
@@ -83,10 +84,46 @@ async def limit_request_size(request: Request, call_next):
     if request.method in ["POST", "PUT", "PATCH"]:
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > settings.max_request_size:
-            return HTTPException(
+            raise HTTPException(
                 status_code=413,
                 detail=f"Request too large. Max size: {settings.max_request_size} bytes"
             )
+    return await call_next(request)
+
+
+# Input validation middleware
+@app.middleware("http")
+async def validate_query_params(request: Request, call_next):
+    """Validate query parameters for potential injection attacks."""
+    # Check query string parameters
+    for key, value in request.query_params.items():
+        if isinstance(value, str):
+            # Check for SQL injection patterns
+            if not is_safe_sql_input(value):
+                logger.warning(
+                    "suspicious_query_param",
+                    key=key,
+                    value=value[:100],
+                    path=request.url.path
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid input detected in parameter: {key}"
+                )
+            
+            # Check for XSS patterns
+            if not is_safe_web_input(value):
+                logger.warning(
+                    "suspicious_xss_query_param",
+                    key=key,
+                    value=value[:100],
+                    path=request.url.path
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid input detected in parameter: {key}"
+                )
+    
     return await call_next(request)
 
 # Include routers
@@ -284,7 +321,12 @@ async def get_chat_settings(
     _token: None = Depends(verify_admin_token)
 ):
     """Get settings for a specific chat."""
-    settings_row = session.query(GroupSettings).filter_by(chat_id=chat_id).first()
+    # Validate chat_id
+    validated_chat_id = sanitize_chat_id(chat_id)
+    if validated_chat_id is None:
+        raise HTTPException(status_code=400, detail="Invalid chat_id")
+    
+    settings_row = session.query(GroupSettings).filter_by(chat_id=validated_chat_id).first()
     
     if not settings_row:
         raise HTTPException(status_code=404, detail="Chat settings not found")

@@ -2,7 +2,7 @@
 
 import functools
 import structlog
-from typing import Callable, Any
+from typing import Callable, Any, Tuple, Optional
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -11,6 +11,33 @@ from ..db import async_session
 from ..core.exceptions import TgStatsError
 
 logger = structlog.get_logger(__name__)
+
+
+def _parse_handler_args(args: tuple) -> Tuple[Optional[Any], Update, ContextTypes.DEFAULT_TYPE, tuple]:
+    """
+    Parse handler arguments to extract self, update, context, and extra args.
+    
+    Returns:
+        Tuple of (self_arg or None, update, context, extra_args)
+    """
+    # Handle both bound methods (self, update, context) and functions (update, context)
+    if len(args) >= 3 and hasattr(args[0], '__class__') and not isinstance(args[0], Update):
+        # Bound method: (self, update, context, ...)
+        return args[0], args[1], args[2], args[3:]
+    elif len(args) >= 2:
+        # Regular function: (update, context, ...)
+        return None, args[0], args[1], args[2:]
+    else:
+        raise TypeError("Handler requires at least update and context arguments")
+
+
+def _call_handler(func: Callable, self_arg: Optional[Any], update: Update, 
+                  context: ContextTypes.DEFAULT_TYPE, extra_args: tuple, kwargs: dict) -> Any:
+    """Call handler function with or without self argument."""
+    if self_arg is not None:
+        return func(self_arg, update, context, *extra_args, **kwargs)
+    else:
+        return func(update, context, *extra_args, **kwargs)
 
 
 def with_db_session(func: Callable) -> Callable:
@@ -27,29 +54,15 @@ def with_db_session(func: Callable) -> Callable:
     """
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
-        # Handle both bound methods (self, update, context) and functions (update, context)
-        if len(args) >= 3 and hasattr(args[0], '__class__') and not isinstance(args[0], Update):
-            # Bound method: (self, update, context, ...)
-            self_arg = args[0]
-            update = args[1]
-            context = args[2]
-            extra_args = args[3:]
-        elif len(args) >= 2:
-            # Regular function: (update, context, ...)
-            self_arg = None
-            update = args[0]
-            context = args[1]
-            extra_args = args[2:]
-        else:
+        try:
+            self_arg, update, context, extra_args = _parse_handler_args(args)
+        except TypeError as e:
             raise TypeError(f"Handler {func.__name__} requires at least update and context arguments")
         
         async with async_session() as session:
             try:
-                # Call with or without self depending on what we detected
-                if self_arg is not None:
-                    result = await func(self_arg, update, context, session, *extra_args, **kwargs)
-                else:
-                    result = await func(update, context, session, *extra_args, **kwargs)
+                result = await _call_handler(func, self_arg, update, context, 
+                                            extra_args + (session,), kwargs)
                 # Auto-commit on success
                 await session.commit()
                 logger.debug("Transaction committed", handler=func.__name__)
@@ -108,20 +121,9 @@ def require_admin(func: Callable) -> Callable:
     """
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
-        # Handle both bound methods (self, update, context) and functions (update, context)
-        if len(args) >= 3 and hasattr(args[0], '__class__') and not isinstance(args[0], Update):
-            # Bound method: (self, update, context, ...)
-            self_arg = args[0]
-            update = args[1]
-            context = args[2]
-            extra_args = args[3:]
-        elif len(args) >= 2:
-            # Regular function: (update, context, ...)
-            self_arg = None
-            update = args[0]
-            context = args[1]
-            extra_args = args[2:]
-        else:
+        try:
+            self_arg, update, context, extra_args = _parse_handler_args(args)
+        except TypeError:
             return
         
         if not update.effective_chat or not update.effective_user:
@@ -140,11 +142,7 @@ def require_admin(func: Callable) -> Callable:
                     )
                 return
             
-            # Call with or without self
-            if self_arg is not None:
-                return await func(self_arg, update, context, *extra_args, **kwargs)
-            else:
-                return await func(update, context, *extra_args, **kwargs)
+            return await _call_handler(func, self_arg, update, context, extra_args, kwargs)
             
         except Exception as e:
             logger.error("Error checking admin status", error=str(e))
@@ -159,20 +157,9 @@ def group_only(func: Callable) -> Callable:
     """Decorator that ensures command is only used in groups."""
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
-        # Handle both bound methods (self, update, context) and functions (update, context)
-        if len(args) >= 3 and hasattr(args[0], '__class__') and not isinstance(args[0], Update):
-            # Bound method: (self, update, context, ...)
-            self_arg = args[0]
-            update = args[1]
-            context = args[2]
-            extra_args = args[3:]
-        elif len(args) >= 2:
-            # Regular function: (update, context, ...)
-            self_arg = None
-            update = args[0]
-            context = args[1]
-            extra_args = args[2:]
-        else:
+        try:
+            self_arg, update, context, extra_args = _parse_handler_args(args)
+        except TypeError:
             return
         
         if not update.effective_chat:
@@ -185,9 +172,5 @@ def group_only(func: Callable) -> Callable:
                 )
             return
         
-        # Call with or without self
-        if self_arg is not None:
-            return await func(self_arg, update, context, *extra_args, **kwargs)
-        else:
-            return await func(update, context, *extra_args, **kwargs)
+        return await _call_handler(func, self_arg, update, context, extra_args, kwargs)
     return wrapper

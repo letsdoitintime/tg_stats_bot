@@ -16,3 +16,43 @@ celerybeat-schedule
 .DS_Store
 /.idea/
 /.vscode/
+
+# Build artifacts
+build/
+dist/
+*.egg
+*.so
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Redis dump
+dump.rdb
+
+# PostgreSQL data directory
+postgres_data/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# OS files
+Thumbs.db
+.Spotlight-V100
+.Trashes
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ruff
+.ruff_cache/
+
