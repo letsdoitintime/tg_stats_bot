@@ -322,7 +322,11 @@ async def get_chat_users(
     ]
 
     return UserStatsResponse(
-        users=users, total=total, page=page, per_page=per_page, pages=(total + per_page - 1) // per_page
+        users=users,
+        total=total,
+        page=page,
+        per_page=per_page,
+        pages=(total + per_page - 1) // per_page,
     )
 
 

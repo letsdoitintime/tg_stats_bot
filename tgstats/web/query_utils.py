@@ -242,7 +242,7 @@ def build_heatmap_query(is_timescale: bool) -> text:
 def build_user_stats_query_base(is_timescale: bool) -> str:
     """
     Build base query string for user statistics.
-    
+
     This returns just the CTE part that can be combined with other clauses.
 
     Args:

@@ -57,8 +57,7 @@ async def verify_admin_token(
     if settings.admin_api_token:
         if not x_admin_token or x_admin_token != settings.admin_api_token:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, 
-                detail="Invalid or missing admin token"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing admin token"
             )
 
 
