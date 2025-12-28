@@ -17,8 +17,21 @@ class APIRateLimiter:
     """
     Rate limiter for API endpoints using sliding window algorithm.
 
-    Stores request timestamps in memory. For production with multiple
-    workers, consider using Redis.
+    **Important**: This implementation stores request history in memory, which:
+    - Does NOT work with multiple workers (each worker has separate memory)
+    - Has unbounded memory growth without cleanup (mitigated by 1-hour cleanup)
+    - Will lose rate limit state on restart
+
+    **For Production**: Use Redis-backed rate limiting for:
+    - Multi-worker deployments
+    - Persistent rate limit state
+    - Distributed systems
+    - High-traffic applications
+
+    Example Redis implementation:
+        from redis import Redis
+        from limits import RateLimitItemPerMinute, RateLimitItemPerHour
+        from limits.storage import RedisStorage
     """
 
     def __init__(
@@ -40,6 +53,7 @@ class APIRateLimiter:
         self.burst_size = burst_size
 
         # Store request timestamps: {client_id: [timestamp1, timestamp2, ...]}
+        # WARNING: In-memory storage - see class docstring for production considerations
         self._request_history: Dict[str, list] = defaultdict(list)
 
         logger.info(
@@ -187,17 +201,32 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         """Process request and apply rate limiting."""
         # Skip rate limiting for health checks and webhook
-        if request.url.path in ["/healthz", "/health", "/tg/webhook"]:
+        # TODO: Make exempted paths configurable via settings
+        exempted_paths = ["/healthz", "/health", "/tg/webhook"]
+        if request.url.path in exempted_paths:
             return await call_next(request)
 
         # Check rate limit
         is_allowed, error_message = self.rate_limiter.check_rate_limit(request)
 
         if not is_allowed:
+            # Extract retry-after time from error message if present
+            # Default to 60 seconds if not specified
+            retry_after = "60"
+            if "Retry after" in error_message:
+                try:
+                    # Extract number from message like "Retry after 45 seconds"
+                    import re
+                    match = re.search(r"Retry after (\d+) seconds", error_message)
+                    if match:
+                        retry_after = match.group(1)
+                except:
+                    pass
+
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=error_message,
-                headers={"Retry-After": "60"},
+                headers={"Retry-After": retry_after},
             )
 
         # Add rate limit info to response headers
