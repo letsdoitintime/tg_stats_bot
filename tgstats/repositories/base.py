@@ -1,6 +1,7 @@
 """Base repository with common database operations."""
 
-from typing import Generic, TypeVar, Type, Optional, List, Any
+from typing import Any, Generic, List, Optional, Type, TypeVar
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

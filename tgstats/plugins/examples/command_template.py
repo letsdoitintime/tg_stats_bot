@@ -4,7 +4,7 @@ Template for creating a new command plugin.
 Copy this file to ../enabled/ and customize it for your needs.
 """
 
-from typing import Dict, Callable
+from typing import Callable, Dict
 
 from telegram import Update
 from telegram.ext import Application, ContextTypes

@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from ...db import get_session
 from ...models import GroupSettings
-from ...schemas.api import ChatSummary, ChatSettings
+from ...schemas.api import ChatSettings, ChatSummary
 from ..auth import verify_admin_token
-from ..query_utils import check_timescaledb_available, build_chat_stats_query
+from ..query_utils import build_chat_stats_query, check_timescaledb_available
 
 logger = structlog.get_logger(__name__)
 

@@ -1,21 +1,22 @@
 """Integration tests for the improved bot architecture."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 
-from tgstats.models import Chat, User, Message, GroupSettings
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from tgstats.models import Chat, GroupSettings, Message, User
 from tgstats.services.chat_service import ChatService
-from tgstats.services.user_service import UserService
 from tgstats.services.message_service import MessageService
-from tgstats.utils.rate_limiter import RateLimiter
+from tgstats.services.user_service import UserService
 from tgstats.utils.cache import CacheManager
+from tgstats.utils.rate_limiter import RateLimiter
 from tgstats.utils.sanitizer import (
-    sanitize_text,
-    sanitize_command_arg,
     is_safe_sql_input,
     sanitize_chat_id,
+    sanitize_command_arg,
+    sanitize_text,
 )
 
 
@@ -234,6 +235,7 @@ class TestHealthEndpoints:
     async def test_health_endpoint(self):
         """Test basic health endpoint."""
         from fastapi.testclient import TestClient
+
         from tgstats.web.app import app
 
         client = TestClient(app)
@@ -245,6 +247,7 @@ class TestHealthEndpoints:
     async def test_liveness_probe(self):
         """Test Kubernetes liveness probe."""
         from fastapi.testclient import TestClient
+
         from tgstats.web.app import app
 
         client = TestClient(app)
@@ -261,6 +264,7 @@ class TestAuthentication:
     async def test_missing_api_token(self):
         """Test API call without token."""
         from fastapi import HTTPException
+
         from tgstats.web.auth import verify_api_token
 
         with pytest.raises(HTTPException) as exc_info:

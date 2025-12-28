@@ -1,11 +1,13 @@
 """Tests for database connection handling and error recovery."""
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from sqlalchemy.exc import OperationalError, TimeoutError as SQLAlchemyTimeoutError
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from tgstats.db import verify_database_connection, verify_sync_database_connection
+import pytest
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
+
 from tgstats.core.exceptions import DatabaseConnectionError
+from tgstats.db import verify_database_connection, verify_sync_database_connection
 from tgstats.utils.db_retry import with_db_retry
 
 
@@ -123,8 +125,8 @@ class TestConnectionPoolMonitoring:
 
     def test_connection_pool_events_are_registered(self):
         """Test that connection pool event listeners are registered."""
-        from sqlalchemy.pool import Pool
         from sqlalchemy import event
+        from sqlalchemy.pool import Pool
 
         # Check that our event listeners are registered
         listeners = event.contains(Pool, "connect")

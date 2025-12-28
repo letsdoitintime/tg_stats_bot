@@ -5,19 +5,19 @@ This file contains the `EngagementPlugin` class moved out of the package
 maintenance.
 """
 
-from telegram import Update, BotCommand
-from telegram.ext import CommandHandler, ContextTypes, Application
-from sqlalchemy.ext.asyncio import AsyncSession
+from html import escape as html_escape
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
+from telegram import BotCommand, Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-from tgstats.plugins.base import CommandPlugin, PluginMetadata
-from tgstats.utils.decorators import with_db_session, group_only
-from tgstats.services.engagement_service import EngagementScoringService
-from tgstats.repositories.user_repository import UserRepository
-from tgstats.repositories.chat_repository import ChatRepository
 from tgstats.core.exceptions import ChatNotSetupError
-from html import escape as html_escape
+from tgstats.plugins.base import CommandPlugin, PluginMetadata
+from tgstats.repositories.chat_repository import ChatRepository
+from tgstats.repositories.user_repository import UserRepository
+from tgstats.services.engagement_service import EngagementScoringService
+from tgstats.utils.decorators import group_only, with_db_session
 
 logger = structlog.get_logger(__name__)
 

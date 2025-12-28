@@ -3,6 +3,7 @@
 import html
 import re
 from typing import Any, Optional
+
 import structlog
 
 logger = structlog.get_logger()

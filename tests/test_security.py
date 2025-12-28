@@ -1,8 +1,9 @@
 """Tests for security utilities."""
 
 import pytest
-from tgstats.utils.security import SecurityUtils, RateLimitHelper
+
 from tgstats.core.exceptions import InvalidInputError
+from tgstats.utils.security import RateLimitHelper, SecurityUtils
 
 
 class TestSecurityUtils:

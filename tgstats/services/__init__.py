@@ -1,10 +1,10 @@
 """Service layer for business logic."""
 
-from .factory import ServiceFactory
 from .chat_service import ChatService
+from .factory import ServiceFactory
 from .message_service import MessageService
-from .user_service import UserService
 from .reaction_service import ReactionService
+from .user_service import UserService
 
 __all__ = [
     "ServiceFactory",

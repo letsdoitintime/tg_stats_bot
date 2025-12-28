@@ -36,32 +36,32 @@ import structlog
 from telegram import Update
 from telegram.ext import (
     Application,
+    ChatMemberHandler,
     CommandHandler,
     MessageHandler,
     MessageReactionHandler,
-    ChatMemberHandler,
     filters,
 )
 from telegram.request import HTTPXRequest
 
 from .core.config import settings
 from .core.config_validator import validate_config
-from .utils.logging import setup_logging, configure_third_party_logging
 from .handlers.commands import (
-    setup_command,
-    settings_command,
-    set_text_command,
-    set_reactions_command,
     help_command,
+    set_reactions_command,
+    set_text_command,
+    settings_command,
+    setup_command,
 )
-from .handlers.messages import handle_message, handle_edited_message
-from .handlers.reactions import handle_message_reaction
 from .handlers.members import (
-    handle_new_chat_members,
-    handle_left_chat_member,
     handle_chat_member_updated,
+    handle_left_chat_member,
+    handle_new_chat_members,
 )
+from .handlers.messages import handle_edited_message, handle_message
+from .handlers.reactions import handle_message_reaction
 from .plugins import PluginManager
+from .utils.logging import configure_third_party_logging, setup_logging
 
 # Configure logging
 setup_logging(
@@ -95,9 +95,10 @@ async def run_migrations():
     logger.info("Running database migrations...")
     try:
         # Import here to avoid circular dependencies
-        from alembic.config import Config
-        from alembic import command
         import os
+
+        from alembic import command
+        from alembic.config import Config
 
         # Get the directory containing this file
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -118,7 +119,7 @@ async def run_migrations():
 async def error_handler(update: object, context) -> None:
     """Enhanced global error handler with detailed logging."""
     # Import here to avoid circular dependency issues
-    from telegram.error import NetworkError, TimedOut, RetryAfter
+    from telegram.error import NetworkError, RetryAfter, TimedOut
 
     # Check if it's a network-related error that should be handled quietly
     if isinstance(context.error, (NetworkError, TimedOut, RetryAfter)):

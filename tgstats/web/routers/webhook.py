@@ -1,9 +1,9 @@
 """Webhook router for Telegram updates."""
 
-import structlog
 from typing import Dict
 
-from fastapi import APIRouter, Request, HTTPException, Depends
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, Request
 from telegram import Update
 from telegram.ext import Application
 

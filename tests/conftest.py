@@ -1,9 +1,10 @@
 """Test configuration and fixtures."""
 
-import pytest
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+
+import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from tgstats.db import Base
 from tgstats.models import *  # noqa

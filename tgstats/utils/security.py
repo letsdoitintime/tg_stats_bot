@@ -3,8 +3,8 @@
 Provides input sanitization, SQL injection prevention, and security helpers.
 """
 
-import re
 import html
+import re
 
 import structlog
 

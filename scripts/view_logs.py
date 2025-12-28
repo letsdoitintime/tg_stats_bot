@@ -13,9 +13,9 @@ Usage:
 import argparse
 import json
 import sys
-from pathlib import Path
-from datetime import datetime
 import time
+from datetime import datetime
+from pathlib import Path
 
 
 def parse_log_line(line: str) -> dict:

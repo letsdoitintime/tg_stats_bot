@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter
 
-
 # Create v1 API router
 router = APIRouter(prefix="/api/v1", tags=["v1"])
 

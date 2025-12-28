@@ -1,14 +1,13 @@
 """Base classes for all plugins."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Callable
 from dataclasses import dataclass
+from typing import Any, Callable, Dict, List
 
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Update
 from telegram.ext import Application, ContextTypes
-from sqlalchemy.ext.asyncio import AsyncSession
-
 
 logger = structlog.get_logger(__name__)
 

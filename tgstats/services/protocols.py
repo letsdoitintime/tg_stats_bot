@@ -1,11 +1,13 @@
 """Service interfaces using Python protocols for type checking."""
 
-from typing import Protocol, Optional, List, runtime_checkable
 from datetime import datetime
+from typing import List, Optional, Protocol, runtime_checkable
 
-from telegram import Chat as TelegramChat, User as TelegramUser, Message as TelegramMessage
+from telegram import Chat as TelegramChat
+from telegram import Message as TelegramMessage
+from telegram import User as TelegramUser
 
-from ..models import Chat, User, GroupSettings, Message, Membership, Reaction
+from ..models import Chat, GroupSettings, Membership, Message, Reaction, User
 
 
 @runtime_checkable

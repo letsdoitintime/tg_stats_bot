@@ -1,12 +1,13 @@
 """Tests for database common helper functions."""
 
-import pytest
 from datetime import datetime
 from unittest.mock import Mock
 
-from tgstats.handlers.common import upsert_chat, upsert_user, ensure_membership
-from tgstats.models import Chat, User, Membership
+import pytest
+
 from tgstats.enums import ChatType, MembershipStatus
+from tgstats.handlers.common import ensure_membership, upsert_chat, upsert_user
+from tgstats.models import Chat, Membership, User
 
 
 class TestUpsertChat:

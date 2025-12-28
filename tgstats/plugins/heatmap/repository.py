@@ -1,9 +1,9 @@
 """Heatmap repository for activity analysis queries."""
 
 from datetime import datetime, timedelta
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
-from sqlalchemy import select, func, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models import Message

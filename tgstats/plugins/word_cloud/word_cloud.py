@@ -4,16 +4,16 @@ Word Cloud Statistics Plugin.
 Generates word frequency statistics from messages.
 """
 
-from typing import Dict, Any
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram.ext import Application
 
-from .base import StatisticsPlugin, PluginMetadata
 from ..models import Message
+from .base import PluginMetadata, StatisticsPlugin
 
 
 class WordCloudPlugin(StatisticsPlugin):

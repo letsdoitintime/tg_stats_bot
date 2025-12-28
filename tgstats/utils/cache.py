@@ -1,8 +1,9 @@
 """Caching utilities for frequently accessed data."""
 
 import json
-from typing import Any, Optional, Callable
 from functools import wraps
+from typing import Any, Callable, Optional
+
 import structlog
 
 try:

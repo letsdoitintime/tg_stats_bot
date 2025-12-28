@@ -4,15 +4,15 @@ Template for creating a new statistics plugin.
 Copy this file to ../enabled/ and customize it for your needs.
 """
 
-from typing import Dict, Any
 from datetime import datetime, timedelta, timezone
+from typing import Any, Dict
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram.ext import Application
 
-from ..base import StatisticsPlugin, PluginMetadata
 from ...models import Message  # Import models as needed
+from ..base import PluginMetadata, StatisticsPlugin
 
 
 class MyStatisticsPlugin(StatisticsPlugin):

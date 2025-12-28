@@ -1,10 +1,11 @@
 """Tests for plugin dependency resolution."""
 
-import pytest
 from unittest.mock import Mock
 
-from tgstats.plugins.dependency_resolver import PluginDependencyResolver
+import pytest
+
 from tgstats.plugins.base import BasePlugin, PluginMetadata
+from tgstats.plugins.dependency_resolver import PluginDependencyResolver
 
 
 class MockPlugin(BasePlugin):

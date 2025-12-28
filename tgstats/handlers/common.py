@@ -5,17 +5,18 @@
 """
 
 import warnings
-import structlog
 from datetime import datetime, timezone
 from typing import Optional
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from telegram import Chat as TelegramChat, User as TelegramUser
+from telegram import Chat as TelegramChat
+from telegram import User as TelegramUser
 
-from ..models import Chat, User, Membership
 from ..enums import ChatType, MembershipStatus
+from ..models import Chat, Membership, User
 
 logger = structlog.get_logger(__name__)
 

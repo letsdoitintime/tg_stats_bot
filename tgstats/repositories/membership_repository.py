@@ -7,8 +7,8 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Membership
 from ..enums import MembershipStatus
+from ..models import Membership
 from .base import BaseRepository
 
 

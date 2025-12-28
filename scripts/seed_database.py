@@ -1,14 +1,15 @@
 """Seed script to generate sample data for testing."""
 
-import random
 import logging
+import random
 from datetime import datetime, timedelta
 from typing import List
 
 from sqlalchemy.orm import Session
+
 from tgstats.db import get_sync_session
-from tgstats.models import Chat, User, Membership, Message, GroupSettings, Reaction
-from tgstats.enums import ChatType, MembershipStatus, MediaType
+from tgstats.enums import ChatType, MediaType, MembershipStatus
+from tgstats.models import Chat, GroupSettings, Membership, Message, Reaction, User
 
 logger = logging.getLogger(__name__)
 
@@ -287,8 +288,8 @@ def seed_database():
 
 
 if __name__ == "__main__":
-    import sys
     import os
+    import sys
 
     # Add the project root to Python path
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

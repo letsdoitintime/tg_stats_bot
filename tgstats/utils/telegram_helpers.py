@@ -2,9 +2,9 @@
 
 import asyncio
 
-from telegram import Update
-from telegram.error import RetryAfter, TimedOut, NetworkError
 import structlog
+from telegram import Update
+from telegram.error import NetworkError, RetryAfter, TimedOut
 
 logger = structlog.get_logger(__name__)
 

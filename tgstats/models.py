@@ -4,22 +4,22 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     DateTime,
-    Integer,
-    String,
-    Text,
-    JSON,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
+    String,
+    Text,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
-from .enums import ChatType, MembershipStatus, MediaType
+from .enums import ChatType, MediaType, MembershipStatus
 
 
 # Helper function for timezone-aware datetime columns

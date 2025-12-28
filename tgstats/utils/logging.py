@@ -1,10 +1,11 @@
 """Logging configuration utilities with file rotation and structured output."""
 
 import logging
-import sys
 import os
-from pathlib import Path
+import sys
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
+
 import structlog
 from structlog.types import EventDict
 

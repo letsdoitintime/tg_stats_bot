@@ -4,14 +4,14 @@ Activity Heatmap Command Plugin.
 Provides a /heatmap command to show when users are most active.
 """
 
-from typing import Dict, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict
 
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 
-from ..base import CommandPlugin, PluginMetadata
-from ...utils.decorators import with_db_session, group_only
+from ...utils.decorators import group_only, with_db_session
 from ...utils.telegram_helpers import send_message_with_retry
+from ..base import CommandPlugin, PluginMetadata
 from .service import HeatmapService
 
 if TYPE_CHECKING:

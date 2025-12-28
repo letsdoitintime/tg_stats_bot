@@ -1,8 +1,9 @@
 """Common monitoring and alerting helpers."""
 
-from typing import Optional, Dict, Any
-import structlog
 from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
+
+import structlog
 
 logger = structlog.get_logger(__name__)
 

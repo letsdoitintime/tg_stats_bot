@@ -1,14 +1,14 @@
 """Decorators for common patterns."""
 
 import functools
-import structlog
-from typing import Callable, Any, Tuple, Optional
+from typing import Any, Callable, Optional, Tuple
 
+import structlog
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..db import async_session
 from ..core.exceptions import TgStatsError
+from ..db import async_session
 
 logger = structlog.get_logger(__name__)
 

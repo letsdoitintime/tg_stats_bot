@@ -1,6 +1,6 @@
 """Message processing service."""
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Message as TelegramMessage

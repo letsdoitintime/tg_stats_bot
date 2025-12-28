@@ -1,8 +1,8 @@
 """Reaction processing service."""
 
-import structlog
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import MessageReactionUpdated, ReactionType
 
