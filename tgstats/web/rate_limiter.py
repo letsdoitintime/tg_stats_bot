@@ -3,13 +3,11 @@
 import time
 from collections import defaultdict
 from typing import Optional, Dict, Tuple
-from datetime import datetime, timedelta
 
 import structlog
 from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from ..core.config import settings
 
 logger = structlog.get_logger(__name__)
 
