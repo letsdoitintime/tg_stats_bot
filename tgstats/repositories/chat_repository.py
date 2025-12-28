@@ -16,26 +16,24 @@ from .base import BaseRepository
 
 class ChatRepository(BaseRepository[Chat]):
     """Repository for chat-related database operations."""
-    
+
     def __init__(self, session: AsyncSession):
         super().__init__(Chat, session)
-    
+
     async def get_by_chat_id(self, chat_id: int) -> Optional[Chat]:
         """Get chat by Telegram chat ID with settings eagerly loaded."""
         result = await self.session.execute(
-            select(Chat)
-            .where(Chat.chat_id == chat_id)
-            .options(selectinload(Chat.settings))
+            select(Chat).where(Chat.chat_id == chat_id).options(selectinload(Chat.settings))
         )
         return result.scalar_one_or_none()
-    
+
     async def upsert_from_telegram(self, tg_chat: TelegramChat) -> Chat:
         """
         Upsert a chat record from Telegram chat object.
-        
+
         Args:
             tg_chat: Telegram chat object
-            
+
         Returns:
             Chat model instance
         """
@@ -45,7 +43,7 @@ class ChatRepository(BaseRepository[Chat]):
         if hasattr(tg_chat, "photo") and tg_chat.photo:
             photo_small_file_id = tg_chat.photo.small_file_id
             photo_big_file_id = tg_chat.photo.big_file_id
-        
+
         # Extract permissions
         permissions_json = None
         if hasattr(tg_chat, "permissions") and tg_chat.permissions:
@@ -58,14 +56,18 @@ class ChatRepository(BaseRepository[Chat]):
                 "can_send_video_notes": getattr(tg_chat.permissions, "can_send_video_notes", None),
                 "can_send_voice_notes": getattr(tg_chat.permissions, "can_send_voice_notes", None),
                 "can_send_polls": getattr(tg_chat.permissions, "can_send_polls", None),
-                "can_send_other_messages": getattr(tg_chat.permissions, "can_send_other_messages", None),
-                "can_add_web_page_previews": getattr(tg_chat.permissions, "can_add_web_page_previews", None),
+                "can_send_other_messages": getattr(
+                    tg_chat.permissions, "can_send_other_messages", None
+                ),
+                "can_add_web_page_previews": getattr(
+                    tg_chat.permissions, "can_add_web_page_previews", None
+                ),
                 "can_change_info": getattr(tg_chat.permissions, "can_change_info", None),
                 "can_invite_users": getattr(tg_chat.permissions, "can_invite_users", None),
                 "can_pin_messages": getattr(tg_chat.permissions, "can_pin_messages", None),
                 "can_manage_topics": getattr(tg_chat.permissions, "can_manage_topics", None),
             }
-        
+
         chat_data = {
             "chat_id": tg_chat.id,
             "title": tg_chat.title,
@@ -76,7 +78,11 @@ class ChatRepository(BaseRepository[Chat]):
             "photo_small_file_id": photo_small_file_id,
             "photo_big_file_id": photo_big_file_id,
             "invite_link": getattr(tg_chat, "invite_link", None),
-            "pinned_message_id": getattr(tg_chat.pinned_message, "message_id", None) if hasattr(tg_chat, "pinned_message") and tg_chat.pinned_message else None,
+            "pinned_message_id": (
+                getattr(tg_chat.pinned_message, "message_id", None)
+                if hasattr(tg_chat, "pinned_message") and tg_chat.pinned_message
+                else None
+            ),
             "permissions_json": permissions_json,
             "slow_mode_delay": getattr(tg_chat, "slow_mode_delay", None),
             "message_auto_delete_time": getattr(tg_chat, "message_auto_delete_time", None),
@@ -84,7 +90,7 @@ class ChatRepository(BaseRepository[Chat]):
             "linked_chat_id": getattr(tg_chat, "linked_chat_id", None),
             "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
         }
-        
+
         stmt = insert(Chat).values(**chat_data)
         stmt = stmt.on_conflict_do_update(
             index_elements=[Chat.chat_id],
@@ -104,28 +110,28 @@ class ChatRepository(BaseRepository[Chat]):
                 "has_protected_content": stmt.excluded.has_protected_content,
                 "linked_chat_id": stmt.excluded.linked_chat_id,
                 "updated_at": stmt.excluded.updated_at,
-            }
+            },
         )
-        
+
         await self.session.execute(stmt)
         await self.session.flush()
-        
+
         return await self.get_by_chat_id(tg_chat.id)
 
 
 class GroupSettingsRepository(BaseRepository[GroupSettings]):
     """Repository for group settings operations."""
-    
+
     def __init__(self, session: AsyncSession):
         super().__init__(GroupSettings, session)
-    
+
     async def get_by_chat_id(self, chat_id: int) -> Optional[GroupSettings]:
         """Get settings by chat ID."""
         result = await self.session.execute(
             select(GroupSettings).where(GroupSettings.chat_id == chat_id)
         )
         return result.scalar_one_or_none()
-    
+
     async def create_default(self, chat_id: int) -> GroupSettings:
         """Create default settings for a chat."""
         from ..core.constants import (
@@ -136,7 +142,7 @@ class GroupSettingsRepository(BaseRepository[GroupSettings]):
             DEFAULT_LOCALE,
             DEFAULT_CAPTURE_REACTIONS,
         )
-        
+
         settings_data = {
             "chat_id": chat_id,
             "store_text": DEFAULT_STORE_TEXT,
@@ -146,15 +152,15 @@ class GroupSettingsRepository(BaseRepository[GroupSettings]):
             "locale": DEFAULT_LOCALE,
             "capture_reactions": DEFAULT_CAPTURE_REACTIONS,
         }
-        
+
         stmt = insert(GroupSettings).values(**settings_data)
         stmt = stmt.on_conflict_do_nothing(index_elements=[GroupSettings.chat_id])
-        
+
         await self.session.execute(stmt)
         await self.session.flush()
-        
+
         return await self.get_by_chat_id(chat_id)
-    
+
     async def update_setting(
         self, chat_id: int, setting_name: str, value: any
     ) -> Optional[GroupSettings]:

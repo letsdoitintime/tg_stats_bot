@@ -113,7 +113,7 @@ class TestSecurityUtils:
         """Test secure token generation."""
         token1 = SecurityUtils.generate_secure_token(32)
         token2 = SecurityUtils.generate_secure_token(32)
-        
+
         assert len(token1) == 64  # 32 bytes = 64 hex chars
         assert len(token2) == 64
         assert token1 != token2  # Should be unique
@@ -136,7 +136,7 @@ class TestRateLimitHelper:
     def test_rate_limit_not_exceeded(self):
         """Test rate limit not exceeded under threshold."""
         limiter = RateLimitHelper()
-        
+
         # Make 5 requests (under limit of 10)
         for i in range(5):
             exceeded = limiter.check_rate_limit("user123", max_requests=10, window_seconds=60)
@@ -145,11 +145,11 @@ class TestRateLimitHelper:
     def test_rate_limit_exceeded(self):
         """Test rate limit exceeded when over threshold."""
         limiter = RateLimitHelper()
-        
+
         # Make 11 requests (over limit of 10)
         for i in range(10):
             limiter.check_rate_limit("user123", max_requests=10, window_seconds=60)
-        
+
         # 11th request should exceed limit
         exceeded = limiter.check_rate_limit("user123", max_requests=10, window_seconds=60)
         assert exceeded is True
@@ -157,11 +157,11 @@ class TestRateLimitHelper:
     def test_rate_limit_different_identifiers(self):
         """Test rate limits are separate for different identifiers."""
         limiter = RateLimitHelper()
-        
+
         # User 1 makes 10 requests
         for i in range(10):
             limiter.check_rate_limit("user1", max_requests=10, window_seconds=60)
-        
+
         # User 2 should not be affected
         exceeded = limiter.check_rate_limit("user2", max_requests=10, window_seconds=60)
         assert exceeded is False
@@ -169,16 +169,16 @@ class TestRateLimitHelper:
     def test_rate_limit_window_reset(self):
         """Test rate limit resets after window expires."""
         import time
-        
+
         limiter = RateLimitHelper()
-        
+
         # Make requests that should expire
         for i in range(5):
             limiter.check_rate_limit("user123", max_requests=10, window_seconds=1)
-        
+
         # Wait for window to expire
         time.sleep(1.1)
-        
+
         # Should be able to make more requests
         exceeded = limiter.check_rate_limit("user123", max_requests=10, window_seconds=1)
         assert exceeded is False

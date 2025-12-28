@@ -19,29 +19,29 @@ def extract_message_features(
 ) -> Tuple[Optional[str], int, int, int]:
     """
     Extract features from a Telegram message.
-    
+
     Args:
         message: Telegram message object
         store_text: Whether to return the raw text (based on group settings)
-        
+
     Returns:
         Tuple of (text_raw_or_none, text_len, urls_cnt, emoji_cnt)
     """
     # Get the text content (message text or caption)
     text_content = message.text or message.caption or ""
-    
+
     # Calculate text length
     text_len = len(text_content)
-    
+
     # Count URLs
     urls_cnt = len(URL_PATTERN.findall(text_content))
-    
+
     # Count emojis using emoji library
     emoji_cnt = len([char for char in text_content if emoji.is_emoji(char)])
-    
+
     # Return text based on store_text setting
     text_raw = text_content if store_text else None
-    
+
     return text_raw, text_len, urls_cnt, emoji_cnt
 
 

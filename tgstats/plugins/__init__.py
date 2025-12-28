@@ -10,10 +10,10 @@ from .base import (
 from .manager import PluginManager
 
 __all__ = [
-    'BasePlugin',
-    'CommandPlugin',
-    'HandlerPlugin',
-    'StatisticsPlugin',
-    'ServicePlugin',
-    'PluginManager',
+    "BasePlugin",
+    "CommandPlugin",
+    "HandlerPlugin",
+    "StatisticsPlugin",
+    "ServicePlugin",
+    "PluginManager",
 ]

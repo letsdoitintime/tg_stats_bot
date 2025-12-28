@@ -11,11 +11,11 @@ from .reaction_repository import ReactionRepository
 
 class RepositoryFactory:
     """Factory for creating repository instances with shared session."""
-    
+
     def __init__(self, session: AsyncSession):
         """
         Initialize repository factory.
-        
+
         Args:
             session: Database session to use for all repositories
         """
@@ -26,42 +26,42 @@ class RepositoryFactory:
         self._message_repo = None
         self._membership_repo = None
         self._reaction_repo = None
-    
+
     @property
     def chat(self) -> ChatRepository:
         """Get or create chat repository."""
         if self._chat_repo is None:
             self._chat_repo = ChatRepository(self.session)
         return self._chat_repo
-    
+
     @property
     def settings(self) -> GroupSettingsRepository:
         """Get or create group settings repository."""
         if self._settings_repo is None:
             self._settings_repo = GroupSettingsRepository(self.session)
         return self._settings_repo
-    
+
     @property
     def user(self) -> UserRepository:
         """Get or create user repository."""
         if self._user_repo is None:
             self._user_repo = UserRepository(self.session)
         return self._user_repo
-    
+
     @property
     def message(self) -> MessageRepository:
         """Get or create message repository."""
         if self._message_repo is None:
             self._message_repo = MessageRepository(self.session)
         return self._message_repo
-    
+
     @property
     def membership(self) -> MembershipRepository:
         """Get or create membership repository."""
         if self._membership_repo is None:
             self._membership_repo = MembershipRepository(self.session)
         return self._membership_repo
-    
+
     @property
     def reaction(self) -> ReactionRepository:
         """Get or create reaction repository."""

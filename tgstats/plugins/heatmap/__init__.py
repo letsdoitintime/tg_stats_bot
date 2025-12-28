@@ -12,4 +12,4 @@ The plugin can be disabled by renaming this folder with an underscore prefix
 
 from .plugin import HeatmapCommandPlugin
 
-__all__ = ['HeatmapCommandPlugin']
+__all__ = ["HeatmapCommandPlugin"]

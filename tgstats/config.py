@@ -14,9 +14,9 @@ warnings.warn(
     "Importing from tgstats.config is deprecated. "
     "Use 'from tgstats.core.config import settings' instead.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 from .core.config import Settings, settings
 
-__all__ = ['Settings', 'settings']
+__all__ = ["Settings", "settings"]

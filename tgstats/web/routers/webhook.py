@@ -30,22 +30,21 @@ def get_bot_application() -> Application:
 
 @router.post("/webhook")
 async def telegram_webhook(
-    request: Request,
-    bot_application: Application = Depends(get_bot_application)
+    request: Request, bot_application: Application = Depends(get_bot_application)
 ) -> Dict[str, str]:
     """Telegram webhook endpoint."""
     try:
         update_data = await request.json()
         logger.debug("Received webhook update", update_data=update_data)
-        
+
         update = Update.de_json(update_data, bot_application.bot)
         if update is None:
             logger.warning("Could not parse update from webhook data")
             raise HTTPException(status_code=400, detail="Invalid update data")
-        
+
         await bot_application.process_update(update)
         return {"status": "ok"}
-        
+
     except Exception as e:
         logger.error("Error processing webhook update", error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail="Error processing update")
@@ -53,22 +52,21 @@ async def telegram_webhook(
 
 @router.post("/webhook")
 async def telegram_webhook(
-    request: Request,
-    bot_application: Application = Depends(get_bot_application)
+    request: Request, bot_application: Application = Depends(get_bot_application)
 ) -> Dict[str, str]:
     """Telegram webhook endpoint."""
     try:
         update_data = await request.json()
         logger.debug("Received webhook update", extra={"update_data": update_data})
-        
+
         update = Update.de_json(update_data, bot_application.bot)
         if update is None:
             logger.warning("Could not parse update from webhook data")
             raise HTTPException(status_code=400, detail="Invalid update data")
-        
+
         await bot_application.process_update(update)
         return {"status": "ok"}
-        
+
     except Exception as e:
         logger.error("Error processing webhook update", extra={"error": str(e)}, exc_info=True)
         raise HTTPException(status_code=500, detail="Error processing update")
