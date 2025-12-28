@@ -1,11 +1,10 @@
 """Chat management API endpoints."""
 
-from typing import List, Optional
+from typing import List
 
 import structlog
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from ...db import get_session
 from ...models import GroupSettings

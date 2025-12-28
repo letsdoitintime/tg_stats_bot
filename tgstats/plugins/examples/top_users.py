@@ -5,7 +5,7 @@ Provides detailed user activity statistics and a /topusers command.
 """
 
 from typing import Dict, Callable, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession

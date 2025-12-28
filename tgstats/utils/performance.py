@@ -9,7 +9,7 @@ import functools
 from typing import Callable, Any, Optional
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 import structlog
 

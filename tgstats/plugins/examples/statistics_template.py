@@ -5,7 +5,7 @@ Copy this file to ../enabled/ and customize it for your needs.
 """
 
 from typing import Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

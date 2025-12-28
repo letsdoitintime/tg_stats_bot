@@ -2,7 +2,7 @@
 
 import html
 import re
-from typing import Optional
+from typing import Any, Optional
 import structlog
 
 logger = structlog.get_logger()
@@ -119,7 +119,7 @@ def is_safe_web_input(text: str) -> bool:
     return True
 
 
-def sanitize_chat_id(chat_id: any) -> Optional[int]:
+def sanitize_chat_id(chat_id: Any) -> Optional[int]:
     """
     Validate and convert chat ID to int.
 
@@ -140,7 +140,7 @@ def sanitize_chat_id(chat_id: any) -> Optional[int]:
         return None
 
 
-def sanitize_user_id(user_id: any) -> Optional[int]:
+def sanitize_user_id(user_id: Any) -> Optional[int]:
     """
     Validate and convert user ID to int.
 

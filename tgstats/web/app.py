@@ -138,15 +138,15 @@ async def ui_get_chat_summary(
 
     query = text(
         """
-        SELECT 
+        SELECT
             COUNT(*) as total_messages,
             COUNT(DISTINCT messages.user_id) as unique_users,
             COUNT(DISTINCT messages.user_id)::float as avg_daily_users,
             COUNT(DISTINCT CASE WHEN memberships.joined_at BETWEEN :start_utc AND :end_utc THEN memberships.user_id END) as new_users,
             COUNT(DISTINCT CASE WHEN memberships.left_at BETWEEN :start_utc AND :end_utc THEN memberships.user_id END) as left_users
-        FROM messages 
+        FROM messages
         LEFT JOIN memberships ON messages.user_id = memberships.user_id AND messages.chat_id = memberships.chat_id
-        WHERE messages.chat_id = :chat_id 
+        WHERE messages.chat_id = :chat_id
         AND messages.date BETWEEN :start_utc AND :end_utc
     """
     )
@@ -203,8 +203,8 @@ async def ui_get_chat_timeseries(
         query = text(
             """
             SELECT DATE(date) as day, COUNT(*) as value
-            FROM messages 
-            WHERE chat_id = :chat_id 
+            FROM messages
+            WHERE chat_id = :chat_id
             AND date BETWEEN :start_utc AND :end_utc
             GROUP BY DATE(date)
             ORDER BY day
@@ -214,8 +214,8 @@ async def ui_get_chat_timeseries(
         query = text(
             """
             SELECT DATE(date) as day, COUNT(DISTINCT user_id) as value
-            FROM messages 
-            WHERE chat_id = :chat_id 
+            FROM messages
+            WHERE chat_id = :chat_id
             AND date BETWEEN :start_utc AND :end_utc
             GROUP BY DATE(date)
             ORDER BY day
@@ -247,12 +247,12 @@ async def ui_get_chat_heatmap(
 
     query = text(
         """
-        SELECT 
+        SELECT
             EXTRACT(dow FROM date) as day_of_week,
             EXTRACT(hour FROM date) as hour,
             COUNT(*) as message_count
-        FROM messages 
-        WHERE chat_id = :chat_id 
+        FROM messages
+        WHERE chat_id = :chat_id
         AND date BETWEEN :start_utc AND :end_utc
         GROUP BY EXTRACT(dow FROM date), EXTRACT(hour FROM date)
         ORDER BY day_of_week, hour

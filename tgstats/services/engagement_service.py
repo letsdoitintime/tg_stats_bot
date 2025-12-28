@@ -4,8 +4,8 @@ Calculates engagement scores for users based on their activity patterns,
 message content, and interaction with the community.
 """
 
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import List, Optional
 from dataclasses import dataclass
 
 import structlog
@@ -13,7 +13,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Message, User, Chat, Reaction
+from ..models import Message, Reaction
 from ..repositories.message_repository import MessageRepository
 from ..repositories.user_repository import UserRepository
 

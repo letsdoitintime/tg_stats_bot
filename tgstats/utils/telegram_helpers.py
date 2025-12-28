@@ -1,7 +1,6 @@
 """Telegram message sending utilities with flood control."""
 
 import asyncio
-from typing import Optional
 
 from telegram import Update
 from telegram.error import RetryAfter, TimedOut, NetworkError

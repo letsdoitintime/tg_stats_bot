@@ -6,7 +6,7 @@ Generates word frequency statistics from messages.
 
 from typing import Dict, Any
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession

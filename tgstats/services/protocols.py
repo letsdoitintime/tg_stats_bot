@@ -4,7 +4,6 @@ from typing import Protocol, Optional, List, runtime_checkable
 from datetime import datetime
 
 from telegram import Chat as TelegramChat, User as TelegramUser, Message as TelegramMessage
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Chat, User, GroupSettings, Message, Membership, Reaction
 
