@@ -14,22 +14,17 @@ from .base import BaseRepository
 
 class MessageRepository(BaseRepository[Message]):
     """Repository for message-related database operations."""
-    
+
     def __init__(self, session: AsyncSession):
         super().__init__(Message, session)
-    
-    async def get_by_chat_and_msg_id(
-        self, chat_id: int, msg_id: int
-    ) -> Optional[Message]:
+
+    async def get_by_chat_and_msg_id(self, chat_id: int, msg_id: int) -> Optional[Message]:
         """Get message by chat ID and message ID."""
         result = await self.session.execute(
-            select(Message).where(
-                Message.chat_id == chat_id,
-                Message.msg_id == msg_id
-            )
+            select(Message).where(Message.chat_id == chat_id, Message.msg_id == msg_id)
         )
         return result.scalar_one_or_none()
-    
+
     async def create_from_telegram(
         self,
         tg_message: TelegramMessage,
@@ -39,11 +34,11 @@ class MessageRepository(BaseRepository[Message]):
         emoji_cnt: int,
         media_type: str,
         has_media: bool,
-        entities_json: Optional[Dict[str, Any]] = None
+        entities_json: Optional[Dict[str, Any]] = None,
     ) -> Message:
         """
         Create a message record from Telegram message object.
-        
+
         Args:
             tg_message: Telegram message object
             text_raw: Raw text content (None if not storing)
@@ -53,7 +48,7 @@ class MessageRepository(BaseRepository[Message]):
             media_type: Type of media
             has_media: Whether message has media
             entities_json: Message entities as JSON
-            
+
         Returns:
             Message model instance
         """
@@ -61,29 +56,29 @@ class MessageRepository(BaseRepository[Message]):
         msg_date = tg_message.date
         if msg_date and msg_date.tzinfo:
             msg_date = msg_date.astimezone(timezone.utc).replace(tzinfo=None)
-        
+
         edit_date = tg_message.edit_date
         if edit_date and edit_date.tzinfo:
             edit_date = edit_date.astimezone(timezone.utc).replace(tzinfo=None)
-        
+
         # Extract forward information
         forward_date = None
         if hasattr(tg_message, "forward_date") and tg_message.forward_date:
             forward_date = tg_message.forward_date
             if forward_date.tzinfo:
                 forward_date = forward_date.astimezone(timezone.utc).replace(tzinfo=None)
-        
+
         forward_from_user_id = None
         if hasattr(tg_message, "forward_from") and tg_message.forward_from:
             forward_from_user_id = tg_message.forward_from.id
-        
+
         forward_from_chat_id = None
         forward_from_message_id = None
         if hasattr(tg_message, "forward_from_chat") and tg_message.forward_from_chat:
             forward_from_chat_id = tg_message.forward_from_chat.id
         if hasattr(tg_message, "forward_from_message_id") and tg_message.forward_from_message_id:
             forward_from_message_id = tg_message.forward_from_message_id
-        
+
         # Extract caption entities
         caption_entities_json = None
         if tg_message.caption_entities:
@@ -98,7 +93,7 @@ class MessageRepository(BaseRepository[Message]):
                 }
                 for entity in tg_message.caption_entities
             ]
-        
+
         # Extract web page data
         web_page_json = None
         if hasattr(tg_message, "web_page") and tg_message.web_page:
@@ -111,7 +106,7 @@ class MessageRepository(BaseRepository[Message]):
                 "title": getattr(wp, "title", None),
                 "description": getattr(wp, "description", None),
             }
-        
+
         # Extract file/media metadata
         file_id = None
         file_unique_id = None
@@ -122,7 +117,7 @@ class MessageRepository(BaseRepository[Message]):
         width = None
         height = None
         thumbnail_file_id = None
-        
+
         # Check different media types for file info
         media_obj = None
         if tg_message.photo:
@@ -142,7 +137,7 @@ class MessageRepository(BaseRepository[Message]):
             media_obj = tg_message.animation
         elif tg_message.sticker:
             media_obj = tg_message.sticker
-        
+
         if media_obj:
             file_id = getattr(media_obj, "file_id", None)
             file_unique_id = getattr(media_obj, "file_unique_id", None)
@@ -152,10 +147,10 @@ class MessageRepository(BaseRepository[Message]):
             duration = getattr(media_obj, "duration", None)
             width = getattr(media_obj, "width", None)
             height = getattr(media_obj, "height", None)
-            
+
             if hasattr(media_obj, "thumbnail") and media_obj.thumbnail:
                 thumbnail_file_id = media_obj.thumbnail.file_id
-        
+
         message_data = {
             "chat_id": tg_message.chat.id,
             "msg_id": tg_message.message_id,
@@ -164,9 +159,7 @@ class MessageRepository(BaseRepository[Message]):
             "edit_date": edit_date,
             "thread_id": getattr(tg_message, "message_thread_id", None),
             "reply_to_msg_id": (
-                tg_message.reply_to_message.message_id
-                if tg_message.reply_to_message
-                else None
+                tg_message.reply_to_message.message_id if tg_message.reply_to_message else None
             ),
             "has_media": has_media,
             "media_type": media_type,
@@ -185,7 +178,11 @@ class MessageRepository(BaseRepository[Message]):
             "forward_date": forward_date,
             "is_automatic_forward": getattr(tg_message, "is_automatic_forward", None),
             # Additional metadata
-            "via_bot_id": tg_message.via_bot.id if hasattr(tg_message, "via_bot") and tg_message.via_bot else None,
+            "via_bot_id": (
+                tg_message.via_bot.id
+                if hasattr(tg_message, "via_bot") and tg_message.via_bot
+                else None
+            ),
             "author_signature": getattr(tg_message, "author_signature", None),
             "media_group_id": getattr(tg_message, "media_group_id", None),
             "has_protected_content": getattr(tg_message, "has_protected_content", None),
@@ -201,16 +198,12 @@ class MessageRepository(BaseRepository[Message]):
             "height": height,
             "thumbnail_file_id": thumbnail_file_id,
         }
-        
+
         # Use UPSERT to handle potential duplicates
         stmt = insert(Message).values(**message_data)
-        stmt = stmt.on_conflict_do_nothing(
-            index_elements=[Message.chat_id, Message.msg_id]
-        )
-        
+        stmt = stmt.on_conflict_do_nothing(index_elements=[Message.chat_id, Message.msg_id])
+
         await self.session.execute(stmt)
         await self.session.flush()
-        
-        return await self.get_by_chat_and_msg_id(
-            tg_message.chat.id, tg_message.message_id
-        )
+
+        return await self.get_by_chat_and_msg_id(tg_message.chat.id, tg_message.message_id)

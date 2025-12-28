@@ -70,12 +70,10 @@ setup_logging(
     log_file_path=settings.log_file_path,
     log_file_max_bytes=settings.log_file_max_bytes,
     log_file_backup_count=settings.log_file_backup_count,
-    log_format=settings.log_format
+    log_format=settings.log_format,
 )
 configure_third_party_logging(
-    settings.telegram_log_level, 
-    settings.httpx_log_level,
-    settings.uvicorn_log_level
+    settings.telegram_log_level, settings.httpx_log_level, settings.uvicorn_log_level
 )
 
 logger = structlog.get_logger(__name__)
@@ -100,18 +98,18 @@ async def run_migrations():
         from alembic.config import Config
         from alembic import command
         import os
-        
+
         # Get the directory containing this file
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         alembic_cfg = Config(os.path.join(base_dir, "alembic.ini"))
-        
+
         # Set the script location
         alembic_cfg.set_main_option("script_location", os.path.join(base_dir, "migrations"))
-        
+
         # Run migrations
         command.upgrade(alembic_cfg, "head")
         logger.info("Database migrations completed successfully")
-        
+
     except Exception as e:
         logger.error("Failed to run migrations", error=str(e))
         raise
@@ -121,27 +119,35 @@ async def error_handler(update: object, context) -> None:
     """Enhanced global error handler with detailed logging."""
     # Import here to avoid circular dependency issues
     from telegram.error import NetworkError, TimedOut
-    
+
     # Check if it's a network-related error that should be handled quietly
     if isinstance(context.error, (NetworkError, TimedOut)):
         logger.warning(
             "network_error_occurred",
             error_type=type(context.error).__name__,
             error=str(context.error),
-            update_id=update.update_id if hasattr(update, 'update_id') else None,
+            update_id=update.update_id if hasattr(update, "update_id") else None,
         )
         # These errors are typically transient and automatically retried
         return
-    
+
     # Format the full traceback for other errors
     tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
-    tb_string = ''.join(tb_list)
-    
+    tb_string = "".join(tb_list)
+
     logger.error(
         "Exception while handling an update",
-        update_id=update.update_id if hasattr(update, 'update_id') else None,
-        chat_id=update.effective_chat.id if update and hasattr(update, 'effective_chat') and update.effective_chat else None,
-        user_id=update.effective_user.id if update and hasattr(update, 'effective_user') and update.effective_user else None,
+        update_id=update.update_id if hasattr(update, "update_id") else None,
+        chat_id=(
+            update.effective_chat.id
+            if update and hasattr(update, "effective_chat") and update.effective_chat
+            else None
+        ),
+        user_id=(
+            update.effective_user.id
+            if update and hasattr(update, "effective_user") and update.effective_user
+            else None
+        ),
         error_type=type(context.error).__name__,
         error=str(context.error),
         traceback=tb_string,
@@ -158,7 +164,7 @@ def create_application() -> Application:
         connect_timeout=settings.bot_connect_timeout,
         pool_timeout=settings.bot_pool_timeout,
     )
-    
+
     # Create application with optimizations
     application = (
         Application.builder()
@@ -167,10 +173,10 @@ def create_application() -> Application:
         .concurrent_updates(True)
         .build()
     )
-    
+
     # Add error handler
     application.add_error_handler(error_handler)
-    
+
     # Add command handlers
     application.add_handler(CommandHandler("setup", setup_command))
     application.add_handler(CommandHandler("settings", settings_command))
@@ -178,23 +184,35 @@ def create_application() -> Application:
     application.add_handler(CommandHandler("set_reactions", set_reactions_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("start", help_command))
-    
+
     # Add reaction handlers
     application.add_handler(MessageReactionHandler(handle_message_reaction))
     # Note: message_reaction_count updates are also handled by the same handler
     # as they come through the same MessageReactionHandler
-    
+
     # Add message handlers with optimized filters
     # Handle regular messages (text, media, etc.) in groups only
     application.add_handler(
         MessageHandler(
-            (filters.TEXT | filters.PHOTO | filters.VIDEO | filters.Document.ALL | 
-             filters.AUDIO | filters.VOICE | filters.VIDEO_NOTE | filters.Sticker.ALL |
-             filters.ANIMATION | filters.CONTACT | filters.LOCATION | filters.VENUE |
-             filters.POLL | filters.GAME) & 
-            ~filters.COMMAND & 
-            (filters.ChatType.GROUPS | filters.ChatType.SUPERGROUP),
-            handle_message
+            (
+                filters.TEXT
+                | filters.PHOTO
+                | filters.VIDEO
+                | filters.Document.ALL
+                | filters.AUDIO
+                | filters.VOICE
+                | filters.VIDEO_NOTE
+                | filters.Sticker.ALL
+                | filters.ANIMATION
+                | filters.CONTACT
+                | filters.LOCATION
+                | filters.VENUE
+                | filters.POLL
+                | filters.GAME
+            )
+            & ~filters.COMMAND
+            & (filters.ChatType.GROUPS | filters.ChatType.SUPERGROUP),
+            handle_message,
         )
     )
     # Handle member updates
@@ -204,15 +222,15 @@ def create_application() -> Application:
     application.add_handler(
         MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, handle_left_chat_member)
     )
-    
+
     # Add edited message handler
     application.add_handler(
         MessageHandler(filters.UpdateType.EDITED_MESSAGE, handle_edited_message)
     )
-    
+
     # Add chat member handler
     application.add_handler(ChatMemberHandler(handle_chat_member_updated))
-    
+
     logger.info("Bot application configured successfully")
     return application
 
@@ -220,33 +238,29 @@ def create_application() -> Application:
 async def setup_plugins(application: Application) -> None:
     """Load and initialize all plugins."""
     global plugin_manager
-    
+
     # Skip if plugins are disabled
     if not settings.enable_plugins:
         logger.info("Plugins disabled in configuration")
         return
-    
+
     try:
         logger.info("Loading plugins...")
         await plugin_manager.load_plugins()
-        
+
         logger.info("Initializing plugins...")
         await plugin_manager.initialize_plugins(application)
-        
+
         logger.info("Registering command plugins...")
         plugin_manager.register_command_plugins(application)
-        
+
         # Start hot reload monitoring
         await plugin_manager.start_hot_reload(application)
-        
+
         # Log loaded plugins
         plugins = plugin_manager.list_plugins()
-        logger.info(
-            "plugins_loaded",
-            count=len(plugins),
-            plugins=list(plugins.keys())
-        )
-        
+        logger.info("plugins_loaded", count=len(plugins), plugins=list(plugins.keys()))
+
     except Exception as e:
         logger.error("Failed to setup plugins", error=str(e), exc_info=True)
 
@@ -254,35 +268,35 @@ async def setup_plugins(application: Application) -> None:
 async def run_polling_mode(application: Application) -> None:
     """Run the bot in polling mode with graceful shutdown."""
     logger.info("Starting bot in polling mode...")
-    
+
     # Initialize the application
     await application.initialize()
     await application.start()
-    
+
     # Setup plugins
     await setup_plugins(application)
-    
+
     # Start polling with explicit timeout configuration
     await application.updater.start_polling(
         allowed_updates=Update.ALL_TYPES,
         timeout=settings.bot_get_updates_timeout,  # Long-polling timeout for getUpdates
     )
-    
+
     logger.info("Bot is running in polling mode. Press Ctrl+C to stop.")
-    
+
     # Create a future for shutdown signal
     shutdown_event = asyncio.Event()
-    
+
     def handle_shutdown_signal():
         """Handle shutdown signals."""
         logger.info("Shutdown signal received, stopping gracefully...")
         shutdown_event.set()
-    
+
     # Register signal handlers for the event loop
     loop = asyncio.get_event_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(sig, handle_shutdown_signal)
-    
+
     try:
         # Wait for shutdown signal
         await shutdown_event.wait()
@@ -291,10 +305,10 @@ async def run_polling_mode(application: Application) -> None:
         try:
             # Stop hot reload first
             await plugin_manager.stop_hot_reload()
-            
+
             # Shutdown plugins
             await plugin_manager.shutdown_plugins()
-            
+
             await application.updater.stop()
             await application.stop()
             await application.shutdown()
@@ -308,32 +322,32 @@ async def run_webhook_mode(application: Application) -> None:
     if not settings.webhook_url:
         logger.error("WEBHOOK_URL is required for webhook mode")
         sys.exit(1)
-    
+
     logger.info("Starting bot in webhook mode...")
-    
+
     # Initialize the application
     await application.initialize()
     await application.start()
-    
+
     # Setup plugins
     await setup_plugins(application)
-    
+
     # Set webhook
     await application.bot.set_webhook(
         url=f"{settings.webhook_url}/tg/webhook",
         allowed_updates=Update.ALL_TYPES,
     )
-    
+
     logger.info(f"Webhook set to: {settings.webhook_url}/tg/webhook")
-    
+
     # Import and configure FastAPI app
     from .web.app import app, set_bot_application
-    
+
     set_bot_application(application)
-    
+
     # Run FastAPI server
     import uvicorn
-    
+
     config = uvicorn.Config(
         app,
         host="0.0.0.0",
@@ -341,9 +355,9 @@ async def run_webhook_mode(application: Application) -> None:
         log_level=settings.log_level.lower(),
     )
     server = uvicorn.Server(config)
-    
+
     logger.info("FastAPI server starting on port 8010")
-    
+
     try:
         await server.serve()
     finally:
@@ -358,18 +372,18 @@ async def main():
     try:
         # Skip migrations for now since they're already done
         # await run_migrations()
-        
+
         # Create and configure the application
         application = create_application()
-        
+
         # Check if we should run in webhook or polling mode
         webhook_url = settings.webhook_url
-        
+
         if webhook_url:
             await run_webhook_mode(application)
         else:
             await run_polling_mode(application)
-            
+
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     except Exception as e:

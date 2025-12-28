@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class ChatSummary(BaseModel):
     """Chat summary response."""
+
     chat_id: int
     title: Optional[str]
     msg_count_30d: int
@@ -15,6 +16,7 @@ class ChatSummary(BaseModel):
 
 class ChatSettings(BaseModel):
     """Chat settings response."""
+
     chat_id: int
     store_text: bool
     text_retention_days: int
@@ -26,6 +28,7 @@ class ChatSettings(BaseModel):
 
 class PeriodSummary(BaseModel):
     """Period summary statistics."""
+
     total_messages: int
     unique_users: int
     avg_daily_users: float
@@ -38,12 +41,14 @@ class PeriodSummary(BaseModel):
 
 class TimeseriesPoint(BaseModel):
     """Single point in a timeseries."""
+
     day: str
     value: int
 
 
 class UserStats(BaseModel):
     """User statistics."""
+
     user_id: int
     username: Optional[str]
     first_name: Optional[str]
@@ -58,6 +63,7 @@ class UserStats(BaseModel):
 
 class UserStatsResponse(BaseModel):
     """User statistics list response."""
+
     items: List[UserStats]
     page: int
     per_page: int
@@ -66,11 +72,13 @@ class UserStatsResponse(BaseModel):
 
 class RetentionPreviewRequest(BaseModel):
     """Request for retention preview."""
+
     chat_id: int = Field(..., description="Chat ID to preview retention for")
 
 
 class RetentionPreviewResponse(BaseModel):
     """Response for retention preview."""
+
     chat_id: int
     text_retention_days: int
     metadata_retention_days: int

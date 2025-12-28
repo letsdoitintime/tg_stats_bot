@@ -5,6 +5,7 @@ from enum import Enum
 
 class ChatType(str, Enum):
     """Telegram chat types."""
+
     PRIVATE = "private"
     GROUP = "group"
     SUPERGROUP = "supergroup"
@@ -13,6 +14,7 @@ class ChatType(str, Enum):
 
 class MembershipStatus(str, Enum):
     """Membership status in a chat."""
+
     CREATOR = "creator"
     ADMINISTRATOR = "administrator"
     MEMBER = "member"
@@ -24,6 +26,7 @@ class MembershipStatus(str, Enum):
 
 class MediaType(str, Enum):
     """Message media types."""
+
     TEXT = "text"
     PHOTO = "photo"
     VIDEO = "video"

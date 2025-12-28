@@ -8,7 +8,7 @@ from .base import BaseSchema
 
 class MessageBase(BaseSchema):
     """Base message schema."""
-    
+
     chat_id: int
     msg_id: int
     user_id: Optional[int] = None
@@ -22,7 +22,7 @@ class MessageBase(BaseSchema):
 
 class MessageCreate(MessageBase):
     """Schema for creating a message."""
-    
+
     text_raw: Optional[str] = None
     thread_id: Optional[int] = None
     reply_to_msg_id: Optional[int] = None
@@ -30,7 +30,7 @@ class MessageCreate(MessageBase):
 
 class MessageResponse(MessageBase):
     """Schema for message responses."""
-    
+
     edit_date: Optional[datetime] = None
     thread_id: Optional[int] = None
     reply_to_msg_id: Optional[int] = None
@@ -39,7 +39,7 @@ class MessageResponse(MessageBase):
 
 class MessageStatsQuery(BaseSchema):
     """Query parameters for message statistics."""
-    
+
     chat_id: int
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None

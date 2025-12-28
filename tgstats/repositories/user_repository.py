@@ -14,24 +14,22 @@ from .base import BaseRepository
 
 class UserRepository(BaseRepository[User]):
     """Repository for user-related database operations."""
-    
+
     def __init__(self, session: AsyncSession):
         super().__init__(User, session)
-    
+
     async def get_by_user_id(self, user_id: int) -> Optional[User]:
         """Get user by Telegram user ID."""
-        result = await self.session.execute(
-            select(User).where(User.user_id == user_id)
-        )
+        result = await self.session.execute(select(User).where(User.user_id == user_id))
         return result.scalar_one_or_none()
-    
+
     async def upsert_from_telegram(self, tg_user: TelegramUser) -> User:
         """
         Upsert a user record from Telegram user object.
-        
+
         Args:
             tg_user: Telegram user object
-            
+
         Returns:
             User model instance
         """
@@ -49,7 +47,7 @@ class UserRepository(BaseRepository[User]):
             "supports_inline_queries": getattr(tg_user, "supports_inline_queries", None),
             "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
         }
-        
+
         stmt = insert(User).values(**user_data)
         stmt = stmt.on_conflict_do_update(
             index_elements=[User.user_id],
@@ -65,10 +63,10 @@ class UserRepository(BaseRepository[User]):
                 "can_read_all_group_messages": stmt.excluded.can_read_all_group_messages,
                 "supports_inline_queries": stmt.excluded.supports_inline_queries,
                 "updated_at": stmt.excluded.updated_at,
-            }
+            },
         )
-        
+
         await self.session.execute(stmt)
         await self.session.flush()
-        
+
         return await self.get_by_user_id(tg_user.id)
