@@ -217,6 +217,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 try:
                     # Extract number from message like "Retry after 45 seconds"
                     import re
+
                     match = re.search(r"Retry after (\d+) seconds", error_message)
                     if match:
                         retry_after = match.group(1)

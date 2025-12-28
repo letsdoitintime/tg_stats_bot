@@ -1,6 +1,6 @@
 """Command argument schemas for validation."""
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class SetTextCommand(BaseModel):
@@ -8,7 +8,8 @@ class SetTextCommand(BaseModel):
 
     enabled: bool = Field(..., description="Enable or disable text storage")
 
-    @validator("enabled", pre=True)
+    @field_validator("enabled", mode="before")
+    @classmethod
     def validate_enabled(cls, v):
         """Convert string input to boolean."""
         if isinstance(v, str):
@@ -27,7 +28,8 @@ class SetReactionsCommand(BaseModel):
 
     enabled: bool = Field(..., description="Enable or disable reaction capture")
 
-    @validator("enabled", pre=True)
+    @field_validator("enabled", mode="before")
+    @classmethod
     def validate_enabled(cls, v):
         """Convert string input to boolean."""
         if isinstance(v, str):
