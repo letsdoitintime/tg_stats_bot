@@ -42,6 +42,26 @@ async def verify_api_token(x_api_token: Optional[str] = Header(None, alias="X-AP
     return x_api_token
 
 
+async def verify_admin_token(
+    x_admin_token: Optional[str] = Header(None, alias="X-Admin-Token")
+) -> None:
+    """
+    Verify admin API token if configured.
+
+    Args:
+        x_admin_token: Admin token from X-Admin-Token header
+
+    Raises:
+        HTTPException: If token is invalid or missing when required
+    """
+    if settings.admin_api_token:
+        if not x_admin_token or x_admin_token != settings.admin_api_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Invalid or missing admin token"
+            )
+
+
 async def optional_api_token(
     x_api_token: Optional[str] = Header(None, alias="X-API-Token")
 ) -> Optional[str]:

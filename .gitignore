@@ -56,3 +56,4 @@ dmypy.json
 # ruff
 .ruff_cache/
 
+tgstats/web/app_old.py
