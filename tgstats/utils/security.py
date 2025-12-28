@@ -4,7 +4,6 @@ Provides input sanitization, SQL injection prevention, and security helpers.
 """
 
 import re
-from typing import Optional
 import html
 
 import structlog

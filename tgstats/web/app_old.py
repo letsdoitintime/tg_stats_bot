@@ -20,7 +20,6 @@ from ..utils.sanitizer import is_safe_sql_input, is_safe_web_input
 from .health import router as health_router
 from .error_handlers import register_error_handlers
 from .routers import webhook, chats, analytics
-from .routers.webhook import set_bot_application, get_bot_application
 
 logger = structlog.get_logger(__name__)
 

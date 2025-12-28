@@ -5,7 +5,6 @@ Provides a /heatmap command to show when users are most active.
 """
 
 from typing import Dict, Callable, TYPE_CHECKING
-import asyncio
 
 from telegram import Update
 from telegram.ext import Application, ContextTypes

@@ -1,6 +1,5 @@
 """Heatmap service for activity analysis."""
 
-from datetime import datetime, timedelta
 from typing import List, Tuple, Dict, Optional
 import hashlib
 import json

@@ -1,7 +1,7 @@
 """Celery configuration and tasks for background processing."""
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 import structlog
@@ -192,7 +192,7 @@ def retention_preview(self, chat_id: int) -> Dict[str, Any]:
                 text(
                     """
                     SELECT text_retention_days, metadata_retention_days, store_text, timezone
-                    FROM group_settings 
+                    FROM group_settings
                     WHERE chat_id = :chat_id
                 """
                 ),
@@ -215,10 +215,10 @@ def retention_preview(self, chat_id: int) -> Dict[str, Any]:
                 result = session.execute(
                     text(
                         """
-                        SELECT COUNT(*) 
-                        FROM messages 
-                        WHERE chat_id = :chat_id 
-                        AND date < :cutoff 
+                        SELECT COUNT(*)
+                        FROM messages
+                        WHERE chat_id = :chat_id
+                        AND date < :cutoff
                         AND text_raw IS NOT NULL
                     """
                     ),
@@ -232,9 +232,9 @@ def retention_preview(self, chat_id: int) -> Dict[str, Any]:
                 result = session.execute(
                     text(
                         """
-                        SELECT COUNT(*) 
-                        FROM messages 
-                        WHERE chat_id = :chat_id 
+                        SELECT COUNT(*)
+                        FROM messages
+                        WHERE chat_id = :chat_id
                         AND date < :cutoff
                     """
                     ),
@@ -248,9 +248,9 @@ def retention_preview(self, chat_id: int) -> Dict[str, Any]:
                 result = session.execute(
                     text(
                         """
-                        SELECT COUNT(*) 
-                        FROM reactions 
-                        WHERE chat_id = :chat_id 
+                        SELECT COUNT(*)
+                        FROM reactions
+                        WHERE chat_id = :chat_id
                         AND date < :cutoff
                     """
                     ),

@@ -1,6 +1,6 @@
 """Heatmap repository for activity analysis queries."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
 
 from sqlalchemy import select, func, text
@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...models import Message
 from ...repositories.base import BaseRepository
-from ...core.config import settings
 
 
 class HeatmapRepository(BaseRepository[Message]):
@@ -65,9 +64,9 @@ class HeatmapRepository(BaseRepository[Message]):
         # Note: PostgreSQL dow is 0=Sunday, ISODOW is 1=Monday
         query = text(
             f"""
-            SELECT 
+            SELECT
                 CAST(hour AS INTEGER) as hour,
-                CAST(CASE 
+                CAST(CASE
                     WHEN weekday = 7 THEN 0  -- Sunday: ISODOW 7 -> dow 0
                     ELSE weekday             -- Mon-Sat: ISODOW 1-6 -> dow 1-6
                 END AS INTEGER) as dow,
@@ -117,7 +116,7 @@ class HeatmapRepository(BaseRepository[Message]):
 
         query = text(
             f"""
-            SELECT 
+            SELECT
                 CAST(hour AS INTEGER) as hour,
                 CAST(SUM(msg_cnt) AS INTEGER) as count
             FROM {view_name}
@@ -154,8 +153,8 @@ class HeatmapRepository(BaseRepository[Message]):
         # Convert ISODOW (1-7) to dow (0-6) for consistency
         query = text(
             f"""
-            SELECT 
-                CAST(CASE 
+            SELECT
+                CAST(CASE
                     WHEN weekday = 7 THEN 0  -- Sunday
                     ELSE weekday
                 END AS INTEGER) as dow,

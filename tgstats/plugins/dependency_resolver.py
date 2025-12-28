@@ -3,7 +3,7 @@
 from typing import Dict, List, Set
 import structlog
 
-from .base import BasePlugin, PluginMetadata
+from .base import BasePlugin
 
 logger = structlog.get_logger(__name__)
 

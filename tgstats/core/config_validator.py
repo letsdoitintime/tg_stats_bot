@@ -86,10 +86,37 @@ class ConfigValidator:
     def _validate_security(self) -> None:
         """Validate security configuration."""
         if not self.settings.admin_api_token and self.settings.environment == "production":
-            self.warnings.append("ADMIN_API_TOKEN not set - API will be unprotected")
+            self.errors.append(
+                "ADMIN_API_TOKEN is required in production - API will be unprotected without it"
+            )
 
-        if self.settings.admin_api_token and len(self.settings.admin_api_token) < 16:
-            self.warnings.append("ADMIN_API_TOKEN should be at least 16 characters")
+        if self.settings.admin_api_token:
+            token = self.settings.admin_api_token
+
+            # Length check
+            if len(token) < 32:
+                self.errors.append(
+                    f"ADMIN_API_TOKEN must be at least 32 characters (current: {len(token)})"
+                )
+            elif len(token) < 16:
+                self.warnings.append("ADMIN_API_TOKEN should be at least 16 characters")
+
+            # Entropy check - ensure it's not too simple
+            if token.lower() in ["admin", "password", "secret", "token", "test"]:
+                self.errors.append("ADMIN_API_TOKEN is too simple - use a strong random token")
+
+            # Check for common weak patterns
+            if token == token.lower() or token == token.upper():
+                self.warnings.append(
+                    "ADMIN_API_TOKEN should contain mixed case characters for better security"
+                )
+
+            # Check if it's a demo/test token
+            if "test" in token.lower() or "demo" in token.lower():
+                if self.settings.environment == "production":
+                    self.errors.append(
+                        "ADMIN_API_TOKEN appears to be a test token - not suitable for production"
+                    )
 
         if self.settings.rate_limit_per_minute < 1:
             self.warnings.append("RATE_LIMIT_PER_MINUTE < 1 may be too restrictive")
@@ -97,6 +124,12 @@ class ConfigValidator:
         if self.settings.rate_limit_per_minute > 1000:
             self.warnings.append(
                 "RATE_LIMIT_PER_MINUTE > 1000 may not provide effective protection"
+            )
+
+        # CORS validation
+        if self.settings.cors_origins == "*":
+            self.warnings.append(
+                "CORS_ORIGINS=* allows all origins - restrict to specific domains in production"
             )
 
     def _validate_performance(self) -> None:

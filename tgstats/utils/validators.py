@@ -49,7 +49,7 @@ def validate_chat_id(chat_id: Any) -> int:
         raise ValidationError(f"Invalid chat ID: {chat_id}")
 
 
-def validate_user_id(user_id: any) -> int:
+def validate_user_id(user_id: Any) -> int:
     """
     Validate and convert user ID.
 
@@ -112,7 +112,7 @@ def validate_timezone(timezone: str) -> str:
         raise ValidationError(f"Invalid timezone: {timezone}")
 
 
-def validate_page_number(page: any, min_page: int = 1) -> int:
+def validate_page_number(page: Any, min_page: int = 1) -> int:
     """
     Validate pagination page number.
 
@@ -135,7 +135,7 @@ def validate_page_number(page: any, min_page: int = 1) -> int:
         raise ValidationError(f"Invalid page number: {page}")
 
 
-def validate_per_page(per_page: any, min_value: int = 1, max_value: int = 100) -> int:
+def validate_per_page(per_page: Any, min_value: int = 1, max_value: int = 100) -> int:
     """
     Validate pagination per_page value.
 
@@ -159,7 +159,7 @@ def validate_per_page(per_page: any, min_value: int = 1, max_value: int = 100) -
         raise ValidationError(f"Invalid per_page value: {per_page}")
 
 
-def validate_retention_days(days: any) -> int:
+def validate_retention_days(days: Any) -> int:
     """
     Validate retention days configuration.
 

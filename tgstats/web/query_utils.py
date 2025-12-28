@@ -4,11 +4,8 @@ This module provides reusable query builders to reduce SQL duplication
 across API endpoints and ensure consistent query patterns.
 """
 
-from datetime import datetime
-from typing import Optional, Tuple
 from zoneinfo import ZoneInfo
 
-from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session

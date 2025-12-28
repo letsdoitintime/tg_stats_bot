@@ -65,7 +65,7 @@ def with_db_session(func: Callable) -> Callable:
     async def wrapper(*args, **kwargs) -> Any:
         try:
             self_arg, update, context, extra_args = _parse_handler_args(args)
-        except TypeError as e:
+        except TypeError:
             raise TypeError(
                 f"Handler {func.__name__} requires at least update and context arguments"
             )
