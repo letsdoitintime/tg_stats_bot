@@ -4,18 +4,18 @@ User Activity Summary Plugin.
 Provides detailed user activity statistics and a /topusers command.
 """
 
-from typing import Dict, Callable, Any
 from datetime import datetime, timedelta, timezone
+from typing import Any, Callable, Dict
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Update
 from telegram.ext import Application, ContextTypes
 
-from ..base import CommandPlugin, StatisticsPlugin, PluginMetadata
 from ...db import async_session
-from ...models import Message, User
 from ...enums import ChatType
+from ...models import Message, User
+from ..base import CommandPlugin, PluginMetadata, StatisticsPlugin
 
 
 class TopUsersPlugin(CommandPlugin, StatisticsPlugin):

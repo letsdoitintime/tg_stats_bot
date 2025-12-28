@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from telegram import Chat as TelegramChat
 
-from ..models import Chat, GroupSettings
 from ..enums import ChatType
+from ..models import Chat, GroupSettings
 from .base import BaseRepository
 
 
@@ -135,12 +135,12 @@ class GroupSettingsRepository(BaseRepository[GroupSettings]):
     async def create_default(self, chat_id: int) -> GroupSettings:
         """Create default settings for a chat."""
         from ..core.constants import (
+            DEFAULT_CAPTURE_REACTIONS,
+            DEFAULT_LOCALE,
+            DEFAULT_METADATA_RETENTION_DAYS,
             DEFAULT_STORE_TEXT,
             DEFAULT_TEXT_RETENTION_DAYS,
-            DEFAULT_METADATA_RETENTION_DAYS,
             DEFAULT_TIMEZONE,
-            DEFAULT_LOCALE,
-            DEFAULT_CAPTURE_REACTIONS,
         )
 
         settings_data = {

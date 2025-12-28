@@ -1,14 +1,14 @@
 """User management service."""
 
-import structlog
-from typing import Optional, TYPE_CHECKING
 from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 
+import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import User as TelegramUser
 
-from ..models import User, Membership
 from ..enums import MembershipStatus
+from ..models import Membership, User
 from .base import BaseService
 
 if TYPE_CHECKING:

@@ -1,12 +1,13 @@
 """Comprehensive tests for service layer."""
 
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 
-from tgstats.services.factory import ServiceFactory
-from tgstats.models import Chat, User, Message
+import pytest
+
 from tgstats.enums import ChatType
+from tgstats.models import Chat, Message, User
+from tgstats.services.factory import ServiceFactory
 
 
 @pytest.mark.asyncio
@@ -114,7 +115,8 @@ class TestMessageService:
 
     async def test_process_message(self, test_session):
         """Test processing a Telegram message."""
-        from telegram import Chat as TelegramChat, User as TelegramUser
+        from telegram import Chat as TelegramChat
+        from telegram import User as TelegramUser
 
         # Setup
         chat = Chat(chat_id=123, title="Test", type=ChatType.GROUP)
@@ -160,7 +162,8 @@ class TestReactionService:
 
     async def test_process_reaction_added(self, test_session):
         """Test processing reaction addition."""
-        from telegram import Chat as TelegramChat, User as TelegramUser
+        from telegram import Chat as TelegramChat
+        from telegram import User as TelegramUser
 
         # Setup
         chat = Chat(chat_id=123, title="Test", type=ChatType.GROUP)

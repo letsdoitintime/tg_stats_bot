@@ -3,29 +3,29 @@
 from typing import List, Optional
 
 import structlog
-from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
+from ...celery_tasks import retention_preview
 from ...db import get_session
 from ...schemas.api import (
     PeriodSummary,
+    RetentionPreviewResponse,
     TimeseriesPoint,
     UserStats,
     UserStatsResponse,
-    RetentionPreviewResponse,
 )
 from ..auth import verify_admin_token
+from ..date_utils import parse_period, rotate_heatmap_rows
 from ..query_utils import (
-    check_timescaledb_available,
-    get_group_tz,
+    build_heatmap_query,
     build_period_summary_query,
     build_timeseries_query,
-    build_heatmap_query,
     build_user_stats_query_base,
+    check_timescaledb_available,
+    get_group_tz,
 )
-from ..date_utils import parse_period, rotate_heatmap_rows
-from ...celery_tasks import retention_preview
 
 logger = structlog.get_logger(__name__)
 

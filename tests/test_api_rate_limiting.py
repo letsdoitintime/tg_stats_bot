@@ -1,8 +1,9 @@
 """Tests for API rate limiting."""
 
-import pytest
 import time
 from unittest.mock import MagicMock
+
+import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 

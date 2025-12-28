@@ -1,12 +1,13 @@
 """Prometheus metrics for monitoring."""
 
-from typing import Callable
-from functools import wraps
 import time
+from functools import wraps
+from typing import Callable
+
 import structlog
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, generate_latest
+    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:

@@ -1,7 +1,8 @@
 """Configuration validation utilities."""
 
-import structlog
 from typing import List, Tuple
+
+import structlog
 
 from .config import Settings
 

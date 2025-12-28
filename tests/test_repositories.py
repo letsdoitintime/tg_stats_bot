@@ -1,12 +1,13 @@
 """Comprehensive tests for repository layer."""
 
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy import select
 
-from tgstats.models import Chat, User, Message, Membership, Reaction, GroupSettings
+from tgstats.enums import ChatType, MediaType, MembershipStatus
+from tgstats.models import Chat, GroupSettings, Membership, Message, Reaction, User
 from tgstats.repositories.factory import RepositoryFactory
-from tgstats.enums import ChatType, MembershipStatus, MediaType
 
 
 @pytest.mark.asyncio

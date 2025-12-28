@@ -1,17 +1,18 @@
 """Tests for validation utilities."""
 
 import pytest
+
+from tgstats.core.exceptions import ValidationError
 from tgstats.utils.validators import (
     parse_boolean_argument,
     validate_chat_id,
-    validate_user_id,
     validate_date_string,
-    validate_timezone,
     validate_page_number,
     validate_per_page,
     validate_retention_days,
+    validate_timezone,
+    validate_user_id,
 )
-from tgstats.core.exceptions import ValidationError
 
 
 class TestParseBooleanArgument:

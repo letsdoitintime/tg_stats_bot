@@ -4,15 +4,15 @@ This is the main application file that sets up middleware, includes routers,
 and provides UI endpoints. The actual API logic is in separate router modules.
 """
 
-from typing import Dict, Optional
 import uuid
+from typing import Dict, Optional
 
 import structlog
-from fastapi import FastAPI, Request, HTTPException, Depends, Query
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,11 +20,11 @@ from ..core.config import settings
 from ..db import get_session
 from ..models import Chat
 from ..utils.sanitizer import is_safe_sql_input, is_safe_web_input
-from .health import router as health_router
-from .error_handlers import register_error_handlers
-from .routers import webhook, chats, analytics
-from .query_utils import get_group_tz_async
 from .date_utils import parse_period
+from .error_handlers import register_error_handlers
+from .health import router as health_router
+from .query_utils import get_group_tz_async
+from .routers import analytics, chats, webhook
 
 logger = structlog.get_logger(__name__)
 

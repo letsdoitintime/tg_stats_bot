@@ -1,9 +1,10 @@
 """Tests for the plugin system."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from tgstats.plugins import PluginManager, BasePlugin, CommandPlugin, StatisticsPlugin
+import pytest
+
+from tgstats.plugins import BasePlugin, CommandPlugin, PluginManager, StatisticsPlugin
 from tgstats.plugins.base import PluginMetadata
 
 

@@ -7,7 +7,8 @@ For production, use the module: python -m tgstats.bot_main
 """
 
 if __name__ == "__main__":
-    from tgstats.bot_main import main
     import asyncio
+
+    from tgstats.bot_main import main
 
     asyncio.run(main())

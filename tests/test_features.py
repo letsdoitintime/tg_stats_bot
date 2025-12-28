@@ -1,10 +1,11 @@
 """Tests for message feature extraction."""
 
-import pytest
 from unittest.mock import Mock
 
-from tgstats.utils.features import extract_message_features, get_media_type_from_message
+import pytest
+
 from tgstats.enums import MediaType
+from tgstats.utils.features import extract_message_features, get_media_type_from_message
 
 
 class TestExtractMessageFeatures:

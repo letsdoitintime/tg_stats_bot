@@ -1,14 +1,14 @@
 """Heatmap service for activity analysis."""
 
-from typing import List, Tuple, Dict, Optional
 import hashlib
 import json
+from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from .repository import HeatmapRepository
 from ...utils.cache import cache_manager
+from .repository import HeatmapRepository
 
 logger = structlog.get_logger(__name__)
 

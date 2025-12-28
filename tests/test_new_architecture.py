@@ -4,9 +4,10 @@ Example tests demonstrating the new architecture.
 Run with: pytest tests/test_new_architecture.py
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # These tests demonstrate how to test the new architecture
 # They won't run without proper setup, but show the pattern
@@ -111,8 +112,8 @@ class TestValidators:
 
     def test_parse_boolean_argument_invalid(self):
         """Test parsing invalid argument."""
-        from tgstats.utils.validators import parse_boolean_argument
         from tgstats.core.exceptions import ValidationError
+        from tgstats.utils.validators import parse_boolean_argument
 
         with pytest.raises(ValidationError):
             parse_boolean_argument("maybe")
@@ -127,8 +128,8 @@ class TestValidators:
 
     def test_validate_chat_id_invalid(self):
         """Test invalid chat ID."""
-        from tgstats.utils.validators import validate_chat_id
         from tgstats.core.exceptions import ValidationError
+        from tgstats.utils.validators import validate_chat_id
 
         with pytest.raises(ValidationError):
             validate_chat_id("not_a_number")
@@ -140,10 +141,10 @@ class TestExceptions:
     def test_exception_hierarchy(self):
         """Test exception inheritance."""
         from tgstats.core.exceptions import (
+            AuthorizationError,
+            ChatNotSetupError,
             TgStatsError,
             ValidationError,
-            ChatNotSetupError,
-            AuthorizationError,
         )
 
         # All custom exceptions should inherit from TgStatsError
@@ -165,10 +166,10 @@ class TestConstants:
     def test_constants_exist(self):
         """Test that constants are defined."""
         from tgstats.core.constants import (
-            DEFAULT_TEXT_RETENTION_DAYS,
-            DEFAULT_METADATA_RETENTION_DAYS,
-            DEFAULT_TIMEZONE,
             DEFAULT_LOCALE,
+            DEFAULT_METADATA_RETENTION_DAYS,
+            DEFAULT_TEXT_RETENTION_DAYS,
+            DEFAULT_TIMEZONE,
             TASK_TIME_LIMIT,
         )
 

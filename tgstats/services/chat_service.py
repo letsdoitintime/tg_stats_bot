@@ -1,12 +1,12 @@
 """Chat management service."""
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from telegram import Chat as TelegramChat
 
-from ..models import Chat, GroupSettings
 from ..core.exceptions import ChatNotSetupError
+from ..models import Chat, GroupSettings
 from .base import BaseService
 
 if TYPE_CHECKING:

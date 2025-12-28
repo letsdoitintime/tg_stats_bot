@@ -3,10 +3,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .chat_repository import ChatRepository, GroupSettingsRepository
-from .user_repository import UserRepository
-from .message_repository import MessageRepository
 from .membership_repository import MembershipRepository
+from .message_repository import MessageRepository
 from .reaction_repository import ReactionRepository
+from .user_repository import UserRepository
 
 
 class RepositoryFactory:

@@ -1,9 +1,10 @@
 """Tests for caching utilities."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from tgstats.utils.cache import cached, cache_invalidate, cache_manager
+import pytest
+
+from tgstats.utils.cache import cache_invalidate, cache_manager, cached
 
 
 @pytest.mark.asyncio

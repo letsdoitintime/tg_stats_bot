@@ -1,25 +1,24 @@
 """FastAPI application for webhook endpoint and analytics API."""
 
-from typing import Dict
 import uuid
+from typing import Dict
 
 import structlog
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
 
 from ..core.config import settings
 from ..db import get_session
 from ..models import Chat
 from ..utils.sanitizer import is_safe_sql_input, is_safe_web_input
-from .health import router as health_router
 from .error_handlers import register_error_handlers
-from .routers import webhook, chats, analytics
+from .health import router as health_router
+from .routers import analytics, chats, webhook
 
 logger = structlog.get_logger(__name__)
 

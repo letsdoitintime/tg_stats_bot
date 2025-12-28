@@ -1,12 +1,13 @@
 """Tests for heatmap repository and service."""
 
-import pytest
 from datetime import datetime, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from tgstats.db import Base
-from tgstats.models import Message, Chat, User
+from tgstats.models import Chat, Message, User
 from tgstats.plugins.heatmap.repository import HeatmapRepository
 from tgstats.plugins.heatmap.service import HeatmapService
 

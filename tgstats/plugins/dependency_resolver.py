@@ -1,6 +1,7 @@
 """Plugin dependency resolution using topological sort."""
 
 from typing import Dict, List, Set
+
 import structlog
 
 from .base import BasePlugin

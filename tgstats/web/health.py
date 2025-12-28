@@ -1,14 +1,15 @@
 """Health check and monitoring endpoints."""
 
 import asyncio
+
+import redis.asyncio as aioredis
+import structlog
 from fastapi import APIRouter, Response, status
 from sqlalchemy import text
-import structlog
-import redis.asyncio as aioredis
 
+from ..core.config import settings
 from ..db import engine
 from ..utils.metrics import metrics
-from ..core.config import settings
 
 logger = structlog.get_logger(__name__)
 

@@ -3,8 +3,8 @@
 import structlog
 from sqlalchemy import create_engine, event, exc, text
 from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 from sqlalchemy.pool import Pool
 
 from .core.config import settings

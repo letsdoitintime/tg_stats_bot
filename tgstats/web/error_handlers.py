@@ -1,24 +1,24 @@
 """Standardized error handlers for FastAPI."""
 
-from typing import Any, Dict, Optional
 import traceback
+from typing import Any, Dict, Optional
 
 import structlog
 from fastapi import Request, status
-from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.exceptions import (
-    TgStatsError,
-    DatabaseError,
-    ValidationError as AppValidationError,
     AuthorizationError,
-    NotFoundError,
-    ConfigurationError,
     ChatNotSetupError,
+    ConfigurationError,
+    DatabaseError,
     InsufficientPermissionsError,
+    NotFoundError,
+    TgStatsError,
 )
+from ..core.exceptions import ValidationError as AppValidationError
 
 logger = structlog.get_logger(__name__)
 

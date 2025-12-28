@@ -4,12 +4,12 @@ Provides decorators and helpers for monitoring function execution time,
 database query performance, and system metrics.
 """
 
-import time
 import functools
-from typing import Callable, Any, Optional
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any, Callable, Optional
 
 import structlog
 
@@ -301,8 +301,9 @@ class MemoryMonitor:
     def get_process_memory() -> dict:
         """Get current process memory usage."""
         try:
-            import psutil
             import os
+
+            import psutil
 
             process = psutil.Process(os.getpid())
             mem_info = process.memory_info()

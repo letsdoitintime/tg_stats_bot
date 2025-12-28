@@ -1,8 +1,9 @@
 """Authentication and authorization middleware."""
 
 from typing import Optional
-from fastapi import Header, HTTPException, status
+
 import structlog
+from fastapi import Header, HTTPException, status
 
 from ..core.config import settings
 

@@ -1,13 +1,14 @@
 """Additional tests for Step 2 functionality."""
 
-import pytest
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 from unittest.mock import Mock, patch
+from zoneinfo import ZoneInfo
 
+import pytest
+
+from tgstats.models import GroupSettings
 from tgstats.web.date_utils import parse_period, rotate_heatmap_rows
 from tgstats.web.query_utils import get_group_tz
-from tgstats.models import GroupSettings
 
 
 class TestTimezoneHandling:

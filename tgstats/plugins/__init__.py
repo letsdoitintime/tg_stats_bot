@@ -4,8 +4,8 @@ from .base import (
     BasePlugin,
     CommandPlugin,
     HandlerPlugin,
-    StatisticsPlugin,
     ServicePlugin,
+    StatisticsPlugin,
 )
 from .manager import PluginManager
 

@@ -1,14 +1,14 @@
 """Plugin manager for loading and managing plugins."""
 
+import asyncio
+import fnmatch
 import importlib
 import importlib.util
 import inspect
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Type, Optional
-import asyncio
-import fnmatch
+from typing import Dict, List, Optional, Type
 
 import structlog
 import yaml
@@ -18,10 +18,9 @@ from .base import (
     BasePlugin,
     CommandPlugin,
     HandlerPlugin,
-    StatisticsPlugin,
     ServicePlugin,
+    StatisticsPlugin,
 )
-
 
 logger = structlog.get_logger(__name__)
 

@@ -1,13 +1,14 @@
 """Service factory for dependency injection."""
 
 from typing import Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..repositories.factory import RepositoryFactory
 from .chat_service import ChatService
 from .message_service import MessageService
-from .user_service import UserService
 from .reaction_service import ReactionService
+from .user_service import UserService
 
 
 class ServiceFactory:

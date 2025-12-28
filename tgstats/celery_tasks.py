@@ -2,7 +2,7 @@
 
 import random
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any
+from typing import Any, Dict
 
 import structlog
 from celery import Celery
@@ -14,15 +14,15 @@ logger = structlog.get_logger(__name__)
 # Import after logger setup to avoid circular imports
 try:
     from .core.config import settings
-    from .db import get_sync_session
     from .core.constants import (
-        TASK_TIME_LIMIT,
-        TASK_SOFT_TIME_LIMIT,
-        WORKER_PREFETCH_MULTIPLIER,
-        WORKER_MAX_TASKS_PER_CHILD,
-        CELERY_JITTER_MIN,
         CELERY_JITTER_MAX,
+        CELERY_JITTER_MIN,
+        TASK_SOFT_TIME_LIMIT,
+        TASK_TIME_LIMIT,
+        WORKER_MAX_TASKS_PER_CHILD,
+        WORKER_PREFETCH_MULTIPLIER,
     )
+    from .db import get_sync_session
 except ImportError:
     # Handle case when running standalone
     import os
@@ -30,15 +30,15 @@ except ImportError:
 
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from tgstats.core.config import settings
-    from tgstats.db import get_sync_session
     from tgstats.core.constants import (
-        TASK_TIME_LIMIT,
-        TASK_SOFT_TIME_LIMIT,
-        WORKER_PREFETCH_MULTIPLIER,
-        WORKER_MAX_TASKS_PER_CHILD,
-        CELERY_JITTER_MIN,
         CELERY_JITTER_MAX,
+        CELERY_JITTER_MIN,
+        TASK_SOFT_TIME_LIMIT,
+        TASK_TIME_LIMIT,
+        WORKER_MAX_TASKS_PER_CHILD,
+        WORKER_PREFETCH_MULTIPLIER,
     )
+    from tgstats.db import get_sync_session
 
 # Create Celery app
 celery_app = Celery(

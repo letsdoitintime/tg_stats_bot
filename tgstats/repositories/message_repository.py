@@ -1,7 +1,7 @@
 """Message repository for database operations."""
 
 from datetime import timezone
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert

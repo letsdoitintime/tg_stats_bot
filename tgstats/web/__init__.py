@@ -1,9 +1,9 @@
 """Web application for webhook support."""
 
 from .app import app
-from .routers.webhook import set_bot_application, get_bot_application
 from .auth import verify_api_token
 from .health import router as health_router
+from .routers.webhook import get_bot_application, set_bot_application
 
 __all__ = [
     "app",
