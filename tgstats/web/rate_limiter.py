@@ -224,9 +224,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 except:
                     pass
 
-            raise HTTPException(
+            # Return JSONResponse instead of raising HTTPException
+            # to work properly with BaseHTTPMiddleware
+            from starlette.responses import JSONResponse
+
+            return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=error_message,
+                content={"detail": error_message},
                 headers={"Retry-After": retry_after},
             )
 

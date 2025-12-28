@@ -62,8 +62,9 @@ class TestServices:
 
         # Service should be initialized with session
         assert service.session == session
-        assert service.chat_repo is not None
-        assert service.settings_repo is not None
+        assert service.repos is not None
+        assert service.repos.chat is not None
+        assert service.repos.settings is not None
 
     @pytest.mark.asyncio
     async def test_message_service_process(self):
