@@ -22,7 +22,7 @@ from ..query_utils import (
     build_period_summary_query,
     build_timeseries_query,
     build_heatmap_query,
-    build_user_stats_query,
+    build_user_stats_query_base,
 )
 from ..date_utils import parse_period, rotate_heatmap_rows
 from ...celery_tasks import retention_preview
@@ -218,7 +218,7 @@ async def get_chat_users(
     is_timescale = check_timescaledb_available(session)
 
     # Build the base query
-    base_query = build_user_stats_query(is_timescale)
+    base_query = build_user_stats_query_base(is_timescale)
 
     # Add user details and membership info
     base_query += """
@@ -280,7 +280,7 @@ async def get_chat_users(
     result = session.execute(text(base_query), params).fetchall()
 
     # Get total count (without pagination)
-    count_query = build_user_stats_query(is_timescale)
+    count_query = build_user_stats_query_base(is_timescale)
     count_query += """
         SELECT COUNT(*) as total
         FROM users u

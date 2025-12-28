@@ -55,6 +55,9 @@ def parse_period(
         start_local = start_local.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Convert to UTC
+    # Note: We use timezone-naive datetimes here for database compatibility
+    # PostgreSQL TIMESTAMP columns expect naive datetimes in UTC
+    # The database layer handles timezone-aware storage with TIMESTAMP WITH TIMEZONE columns
     start_utc = start_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
     end_utc = end_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
 

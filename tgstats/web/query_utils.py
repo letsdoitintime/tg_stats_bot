@@ -239,15 +239,17 @@ def build_heatmap_query(is_timescale: bool) -> text:
     )
 
 
-def build_user_stats_query(is_timescale: bool) -> str:
+def build_user_stats_query_base(is_timescale: bool) -> str:
     """
-    Build query to get user statistics.
+    Build base query string for user statistics.
+    
+    This returns just the CTE part that can be combined with other clauses.
 
     Args:
         is_timescale: Whether TimescaleDB is available
 
     Returns:
-        SQL query string (for text() with dynamic parts)
+        SQL query string with CTEs
     """
     table_name = get_aggregate_table_name(is_timescale, "user_chat_daily")
 
