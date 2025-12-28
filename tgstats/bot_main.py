@@ -118,12 +118,14 @@ async def run_migrations():
 async def error_handler(update: object, context) -> None:
     """Enhanced global error handler with detailed logging."""
     # Import here to avoid circular dependency issues
-    from telegram.error import NetworkError, TimedOut
+    from telegram.error import NetworkError, TimedOut, RetryAfter
 
     # Check if it's a network-related error that should be handled quietly
-    if isinstance(context.error, (NetworkError, TimedOut)):
-        logger.warning(
-            "network_error_occurred",
+    if isinstance(context.error, (NetworkError, TimedOut, RetryAfter)):
+        # Only log at DEBUG level for transient network errors
+        # These are automatically retried by python-telegram-bot
+        logger.debug(
+            "transient_network_error",
             error_type=type(context.error).__name__,
             error=str(context.error),
             update_id=update.update_id if hasattr(update, "update_id") else None,
