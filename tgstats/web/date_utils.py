@@ -34,9 +34,7 @@ def parse_period(
         try:
             end_local = datetime.strptime(to_date, "%Y-%m-%d").replace(tzinfo=tz)
         except ValueError:
-            raise HTTPException(
-                status_code=400, detail="Invalid to_date format. Use YYYY-MM-DD"
-            )
+            raise HTTPException(status_code=400, detail="Invalid to_date format. Use YYYY-MM-DD")
     else:
         # Default to end of today in local timezone
         now_local = datetime.now(tz)
@@ -46,9 +44,7 @@ def parse_period(
         try:
             start_local = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=tz)
         except ValueError:
-            raise HTTPException(
-                status_code=400, detail="Invalid from_date format. Use YYYY-MM-DD"
-            )
+            raise HTTPException(status_code=400, detail="Invalid from_date format. Use YYYY-MM-DD")
     else:
         # Default to 30 days before end_local
         start_local = end_local - timedelta(days=30)

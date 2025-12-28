@@ -4,6 +4,7 @@ import pytest
 from datetime import datetime, timezone
 
 from tgstats.repositories.unit_of_work import UnitOfWork
+from tgstats.services.factory import ServiceFactory
 from tgstats.models import Chat, User
 from tgstats.enums import ChatType
 

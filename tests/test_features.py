@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock
 
-from tgstats.features import extract_message_features, get_media_type_from_message
+from tgstats.utils.features import extract_message_features, get_media_type_from_message
 from tgstats.enums import MediaType
 
 

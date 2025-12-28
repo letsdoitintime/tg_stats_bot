@@ -3,7 +3,7 @@
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .factory import ServiceFactory
+from ..services.factory import ServiceFactory
 from ..repositories.factory import RepositoryFactory
 
 
