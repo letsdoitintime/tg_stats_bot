@@ -1,12 +1,11 @@
 """Additional tests for Step 2 functionality."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 import pytest
 
-from tgstats.models import GroupSettings
 from tgstats.web.date_utils import parse_period, rotate_heatmap_rows
 from tgstats.web.query_utils import get_group_tz
 
@@ -134,8 +133,6 @@ class TestUserMetrics:
         """Test activity percentage calculation logic."""
         # This would test the SQL logic if we had a test database
         # For now, we test the concept
-        user_msgs = 50
-        total_msgs = 1000
         expected_percentage = (50 / 1000) * 100
 
         assert expected_percentage == 5.0

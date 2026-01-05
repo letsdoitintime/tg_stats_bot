@@ -1,6 +1,5 @@
 """Tests for plugin dependency resolution."""
 
-from unittest.mock import Mock
 
 import pytest
 

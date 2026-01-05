@@ -1,7 +1,7 @@
 """Comprehensive tests for service layer."""
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 
 import pytest
 

@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import Dict, Optional, Tuple
 
 import structlog
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = structlog.get_logger(__name__)
@@ -220,7 +220,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     match = re.search(r"Retry after (\d+) seconds", error_message)
                     if match:
                         retry_after = match.group(1)
-                except:
+                except (AttributeError, ValueError, IndexError):
+                    # Failed to extract retry_after value, will use default
                     pass
 
             # Return JSONResponse instead of raising HTTPException

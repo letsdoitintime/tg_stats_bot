@@ -18,13 +18,13 @@ depends_on = None
 def upgrade() -> None:
     """Create continuous aggregates or materialized views."""
     connection = op.get_bind()
-    
+
     # Check if TimescaleDB extension exists
     try:
         result = connection.execute(
             sa.text("SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'")
         ).fetchone()
-        
+
         if result:
             # TimescaleDB is available, create continuous aggregates
             create_timescale_aggregates()
@@ -34,14 +34,14 @@ def upgrade() -> None:
     except Exception:
         # If there's any error checking for TimescaleDB, default to materialized views
         create_materialized_views()
-    
+
     # Create indexes for both cases
     create_aggregate_indexes()
 
 
 def create_timescale_aggregates():
     """Create TimescaleDB continuous aggregates."""
-    
+
     # Chat daily aggregate
     op.execute("""
         CREATE MATERIALIZED VIEW chat_daily
@@ -62,7 +62,7 @@ def create_timescale_aggregates():
         GROUP BY chat_id, time_bucket('1 day', date)
         WITH NO DATA;
     """)
-    
+
     # User-chat daily aggregate
     op.execute("""
         CREATE MATERIALIZED VIEW user_chat_daily
@@ -82,7 +82,7 @@ def create_timescale_aggregates():
         GROUP BY chat_id, user_id, time_bucket('1 day', date)
         WITH NO DATA;
     """)
-    
+
     # Chat hourly heatmap
     op.execute("""
         CREATE MATERIALIZED VIEW chat_hourly_heatmap
@@ -104,7 +104,7 @@ def create_timescale_aggregates():
 
 def create_materialized_views():
     """Create regular materialized views for PostgreSQL fallback."""
-    
+
     # Chat daily aggregate
     op.execute("""
         CREATE MATERIALIZED VIEW chat_daily_mv AS
@@ -123,8 +123,8 @@ def create_materialized_views():
         WHERE date IS NOT NULL
         GROUP BY chat_id, DATE(date);
     """)
-    
-    # User-chat daily aggregate  
+
+    # User-chat daily aggregate
     op.execute("""
         CREATE MATERIALIZED VIEW user_chat_daily_mv AS
         SELECT 
@@ -141,7 +141,7 @@ def create_materialized_views():
         WHERE date IS NOT NULL AND user_id IS NOT NULL
         GROUP BY chat_id, user_id, DATE(date);
     """)
-    
+
     # Chat hourly heatmap
     op.execute("""
         CREATE MATERIALIZED VIEW chat_hourly_heatmap_mv AS
@@ -162,13 +162,13 @@ def create_materialized_views():
 def create_aggregate_indexes():
     """Create indexes for aggregate tables."""
     connection = op.get_bind()
-    
+
     # Check if TimescaleDB extension exists
     try:
         result = connection.execute(
             sa.text("SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'")
         ).fetchone()
-        
+
         if result:
             # Indexes for continuous aggregates
             op.execute("CREATE INDEX IF NOT EXISTS ix_chat_daily_chat_day ON chat_daily (chat_id, day);")
@@ -193,12 +193,12 @@ def create_aggregate_indexes():
 def downgrade() -> None:
     """Drop aggregates and materialized views."""
     connection = op.get_bind()
-    
+
     # Check if TimescaleDB extension exists
     result = connection.execute(
         sa.text("SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'")
     ).fetchone()
-    
+
     if result:
         # Drop continuous aggregates
         op.execute("DROP MATERIALIZED VIEW IF EXISTS chat_daily;")

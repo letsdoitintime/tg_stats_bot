@@ -272,7 +272,7 @@ async def get_chat_users(
 
     # Add pagination
     offset = (page - 1) * per_page
-    base_query += f" LIMIT :limit OFFSET :offset"
+    base_query += " LIMIT :limit OFFSET :offset"
     params["limit"] = per_page
     params["offset"] = offset
 

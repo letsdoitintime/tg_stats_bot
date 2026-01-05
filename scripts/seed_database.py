@@ -5,7 +5,6 @@ import random
 from datetime import datetime, timedelta
 from typing import List
 
-from sqlalchemy.orm import Session
 
 from tgstats.db import get_sync_session
 from tgstats.enums import ChatType, MediaType, MembershipStatus
@@ -272,7 +271,7 @@ def seed_database():
 
             # Print summary
             logger.info("Database seeding completed!")
-            logger.info(f"Created:")
+            logger.info("Created:")
             logger.info(f"  - {len(chats)} chats")
             logger.info(f"  - {len(users)} users")
             logger.info(f"  - {len(memberships)} memberships")

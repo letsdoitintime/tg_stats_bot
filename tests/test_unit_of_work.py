@@ -1,13 +1,10 @@
 """Tests for Unit of Work pattern."""
 
-from datetime import datetime, timezone
 
 import pytest
 
 from tgstats.enums import ChatType
-from tgstats.models import Chat, User
 from tgstats.repositories.unit_of_work import UnitOfWork
-from tgstats.services.factory import ServiceFactory
 
 
 @pytest.mark.asyncio
@@ -18,8 +15,8 @@ class TestUnitOfWork:
         """Test that UoW commits on successful completion."""
         async with UnitOfWork(test_session) as uow:
             # Create entities
-            chat = await uow.repos.chat.create(chat_id=123, title="Test Chat", type=ChatType.GROUP)
-            user = await uow.repos.user.create(user_id=456, first_name="Test User")
+            await uow.repos.chat.create(chat_id=123, title="Test Chat", type=ChatType.GROUP)
+            await uow.repos.user.create(user_id=456, first_name="Test User")
 
         # Verify data persisted after context exit
         result_chat = await uow.repos.chat.get_by_chat_id(123)

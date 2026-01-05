@@ -1,12 +1,12 @@
 """Integration tests for the improved bot architecture."""
 
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from tgstats.models import Chat, GroupSettings, Message, User
+from tgstats.models import Chat
 from tgstats.services.chat_service import ChatService
 from tgstats.services.message_service import MessageService
 from tgstats.services.user_service import UserService
@@ -267,7 +267,7 @@ class TestAuthentication:
 
         from tgstats.web.auth import verify_api_token
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(HTTPException):
             await verify_api_token(None)
 
         # This will pass if token is not configured

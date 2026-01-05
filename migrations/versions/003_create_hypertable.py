@@ -23,7 +23,7 @@ def upgrade() -> None:
         result = connection.execute(
             sa.text("SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'")
         ).fetchone()
-        
+
         if result:
             # TimescaleDB is available, create hypertable
             op.execute("""

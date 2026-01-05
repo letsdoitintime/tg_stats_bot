@@ -71,8 +71,8 @@ class TestAdminTokenManager:
     def test_list_tokens(self):
         """Test listing active tokens."""
         manager = AdminTokenManager()
-        token1 = manager.generate_token()
-        token2 = manager.generate_token()
+        manager.generate_token()
+        manager.generate_token()
 
         tokens = manager.list_tokens()
         assert len(tokens) >= 2
