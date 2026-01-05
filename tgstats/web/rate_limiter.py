@@ -190,19 +190,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     Middleware to apply rate limiting to API endpoints.
 
     Usage:
-        app.add_middleware(RateLimitMiddleware, rate_limiter=limiter)
+        app.add_middleware(RateLimitMiddleware, rate_limiter=limiter, exempted_paths=paths)
     """
 
-    def __init__(self, app, rate_limiter: APIRateLimiter):
+    def __init__(self, app, rate_limiter: APIRateLimiter, exempted_paths: Optional[list] = None):
         super().__init__(app)
         self.rate_limiter = rate_limiter
+        self.exempted_paths = exempted_paths or ["/healthz", "/health", "/tg/webhook"]
+        logger.info("Rate limit middleware initialized", exempted_paths=self.exempted_paths)
 
     async def dispatch(self, request: Request, call_next):
         """Process request and apply rate limiting."""
-        # Skip rate limiting for health checks and webhook
-        # TODO: Make exempted paths configurable via settings
-        exempted_paths = ["/healthz", "/health", "/tg/webhook"]
-        if request.url.path in exempted_paths:
+        # Skip rate limiting for exempted paths
+        if request.url.path in self.exempted_paths:
             return await call_next(request)
 
         # Check rate limit

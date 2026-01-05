@@ -4,6 +4,7 @@ Provides decorators and helpers for monitoring function execution time,
 database query performance, and system metrics.
 """
 
+import asyncio
 import functools
 import time
 from contextlib import contextmanager
@@ -288,10 +289,6 @@ def track_query(query_name: str):
             return sync_wrapper
 
     return decorator
-
-
-# Import asyncio for decorator checks
-import asyncio
 
 
 class MemoryMonitor:

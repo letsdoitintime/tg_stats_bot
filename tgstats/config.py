@@ -15,6 +15,9 @@ Migration guide:
 
 import warnings
 
+# Import before warning to avoid E402 linting error
+from .core.config import Settings, settings  # noqa: E402
+
 warnings.warn(
     "Importing from tgstats.config is deprecated and will be removed in v0.3.0. "
     "Use 'from tgstats.core.config import settings' instead. "
@@ -22,7 +25,5 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-
-from .core.config import Settings, settings
 
 __all__ = ["Settings", "settings"]

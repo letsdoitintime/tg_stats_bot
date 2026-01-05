@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # Security settings
     rate_limit_per_minute: int = Field(default=10, env="RATE_LIMIT_PER_MINUTE")
     rate_limit_per_hour: int = Field(default=100, env="RATE_LIMIT_PER_HOUR")
+    rate_limit_exempted_paths: str = Field(
+        default="/healthz,/health,/tg/webhook",
+        env="RATE_LIMIT_EXEMPTED_PATHS"
+    )
 
     # Monitoring
     enable_metrics: bool = Field(default=True, env="ENABLE_METRICS")

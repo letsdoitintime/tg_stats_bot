@@ -30,6 +30,7 @@ __all__ = [
     "RateLimiter",
     "cache",
     "CacheManager",
+    "cache_manager",
     "cached",
     "sanitize_text",
     "sanitize_command_arg",
