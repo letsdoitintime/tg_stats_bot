@@ -63,6 +63,10 @@ def with_db_session(func: Callable) -> Callable:
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
+        """
+        Wrapper that provides a database session to the handler function.
+        Automatically commits on success and rolls back on error.
+        """
         try:
             self_arg, update, context, extra_args = _parse_handler_args(args)
         except TypeError:
@@ -110,6 +114,7 @@ def log_handler_call(func: Callable) -> Callable:
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
+        """Wrapper that logs entry, exit, and errors for a handler function."""
         logger.debug("Handler started", handler=func.__name__)
         try:
             result = await func(*args, **kwargs)
@@ -130,6 +135,10 @@ def require_admin(func: Callable) -> Callable:
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
+        """
+        Wrapper that verifies user is a chat administrator before allowing command execution.
+        Returns early with error message if user is not an admin.
+        """
         try:
             self_arg, update, context, extra_args = _parse_handler_args(args)
         except TypeError:
@@ -166,6 +175,10 @@ def group_only(func: Callable) -> Callable:
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs) -> Any:
+        """
+        Wrapper that restricts command execution to group chats only.
+        Returns early with error message if used in private chat.
+        """
         try:
             self_arg, update, context, extra_args = _parse_handler_args(args)
         except TypeError:

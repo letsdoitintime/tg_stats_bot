@@ -29,6 +29,7 @@ class TopUsersPlugin(CommandPlugin, StatisticsPlugin):
 
     @property
     def metadata(self) -> PluginMetadata:
+        """Return plugin metadata including name, version, and dependencies."""
         return PluginMetadata(
             name="top_users",
             version="1.0.0",
@@ -47,20 +48,24 @@ class TopUsersPlugin(CommandPlugin, StatisticsPlugin):
 
     # CommandPlugin methods
     def get_commands(self) -> Dict[str, Callable]:
+        """Return a mapping of command names to handler functions."""
         return {
             "topusers": self._top_users_command,
         }
 
     def get_command_descriptions(self) -> Dict[str, str]:
+        """Return a mapping of command names to their descriptions for /help."""
         return {
             "topusers": "Show the most active users in the group",
         }
 
     # StatisticsPlugin methods
     def get_stat_name(self) -> str:
+        """Return the unique identifier for this statistic."""
         return "user_activity"
 
     def get_stat_description(self) -> str:
+        """Return a human-readable description of the statistic."""
         return "User activity rankings and statistics"
 
     async def calculate_stats(

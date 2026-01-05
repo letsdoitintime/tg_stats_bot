@@ -137,8 +137,10 @@ def track_time(handler_name: str):
     """
 
     def decorator(func: Callable):
+        """Decorator function that wraps the target function with timing logic."""
         @wraps(func)
         async def wrapper(*args, **kwargs):
+            """Async wrapper that measures execution time and records metrics."""
             if not metrics._enabled:
                 return await func(*args, **kwargs)
 
@@ -170,8 +172,10 @@ def track_db_query(operation: str):
     """
 
     def decorator(func: Callable):
+        """Decorator function that wraps database operations with query tracking."""
         @wraps(func)
         async def wrapper(*args, **kwargs):
+            """Async wrapper that measures query execution time and records DB metrics."""
             if not metrics._enabled:
                 return await func(*args, **kwargs)
 

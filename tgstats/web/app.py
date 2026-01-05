@@ -29,11 +29,75 @@ from .routers import analytics, chats, webhook
 logger = structlog.get_logger(__name__)
 
 
-# Create FastAPI app
+# Create FastAPI app with comprehensive OpenAPI documentation
 app = FastAPI(
-    title="Telegram Analytics Bot",
-    description="Webhook endpoint and analytics API for Telegram bot",
+    title="Telegram Analytics Bot API",
+    description="""
+## Telegram Statistics Bot - Analytics API
+
+A comprehensive analytics platform for Telegram group statistics and insights.
+
+### Features
+
+* 📊 **Real-time Analytics** - Track messages, users, and engagement in real-time
+* 📈 **Historical Data** - Analyze trends over time with TimescaleDB
+* 🔌 **Plugin System** - Extensible architecture with hot-reloadable plugins
+* 🔐 **Secure API** - Token-based authentication for all endpoints
+* 🌍 **Timezone Support** - Per-group timezone configuration
+* ⚡ **High Performance** - Caching, rate limiting, and optimized queries
+
+### Authentication
+
+All API endpoints require authentication using an admin token.
+Include the token in the request header:
+
+```
+X-Admin-Token: your-secret-token-here
+```
+
+Set the admin token using the `ADMIN_API_TOKEN` environment variable.
+
+### Rate Limiting
+
+API requests are rate-limited to prevent abuse:
+- **60 requests per minute** per client
+- **1000 requests per hour** per client
+- **Burst allowance** of 10 requests in 5 seconds
+
+Rate limit information is included in response headers:
+- `X-RateLimit-Limit-Minute`
+- `X-RateLimit-Remaining-Minute`
+- `X-RateLimit-Limit-Hour`
+- `X-RateLimit-Remaining-Hour`
+    """,
     version="0.2.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {
+            "name": "health",
+            "description": "Health check and monitoring endpoints",
+        },
+        {
+            "name": "chats",
+            "description": "Chat management and statistics endpoints",
+        },
+        {
+            "name": "analytics",
+            "description": "Advanced analytics and reporting endpoints",
+        },
+        {
+            "name": "webhook",
+            "description": "Telegram webhook endpoint (internal use)",
+        },
+    ],
+    contact={
+        "name": "TG Stats Bot",
+        "url": "https://github.com/letsdoitintime/tg_stats_bot",
+    },
+    license_info={
+        "name": "MIT",
+    },
 )
 
 # Parse CORS origins from comma-separated string
