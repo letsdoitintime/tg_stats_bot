@@ -38,7 +38,7 @@ def upgrade() -> None:
 
     # Add new columns to messages table
     op.add_column('messages', sa.Column('caption_entities_json', postgresql.JSON(astext_type=sa.Text()), nullable=True))
-    
+
     # Forward information
     op.add_column('messages', sa.Column('forward_from_user_id', sa.BigInteger(), nullable=True))
     op.add_column('messages', sa.Column('forward_from_chat_id', sa.BigInteger(), nullable=True))
@@ -47,14 +47,14 @@ def upgrade() -> None:
     op.add_column('messages', sa.Column('forward_sender_name', sa.String(length=255), nullable=True))
     op.add_column('messages', sa.Column('forward_date', sa.DateTime(), nullable=True))
     op.add_column('messages', sa.Column('is_automatic_forward', sa.Boolean(), nullable=True))
-    
+
     # Additional message metadata
     op.add_column('messages', sa.Column('via_bot_id', sa.BigInteger(), nullable=True))
     op.add_column('messages', sa.Column('author_signature', sa.String(length=255), nullable=True))
     op.add_column('messages', sa.Column('media_group_id', sa.String(length=255), nullable=True))
     op.add_column('messages', sa.Column('has_protected_content', sa.Boolean(), nullable=True))
     op.add_column('messages', sa.Column('web_page_json', postgresql.JSON(astext_type=sa.Text()), nullable=True))
-    
+
     # Media file metadata
     op.add_column('messages', sa.Column('file_id', sa.String(length=255), nullable=True))
     op.add_column('messages', sa.Column('file_unique_id', sa.String(length=255), nullable=True))

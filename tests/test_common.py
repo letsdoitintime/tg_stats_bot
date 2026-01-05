@@ -7,7 +7,6 @@ import pytest
 
 from tgstats.enums import ChatType, MembershipStatus
 from tgstats.handlers.common import ensure_membership, upsert_chat, upsert_user
-from tgstats.models import Chat, Membership, User
 
 
 class TestUpsertChat:

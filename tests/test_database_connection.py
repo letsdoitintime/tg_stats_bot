@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 
 from tgstats.core.exceptions import DatabaseConnectionError
 from tgstats.db import verify_database_connection, verify_sync_database_connection
@@ -145,7 +144,7 @@ class TestSessionErrorHandling:
     @pytest.mark.asyncio
     async def test_session_operational_error_handling(self):
         """Test that operational errors in sessions are properly handled."""
-        with patch("tgstats.db.async_session") as mock_session:
+        with patch("tgstats.db.async_session"):
             mock_session_instance = AsyncMock()
             mock_session_instance.__aenter__.return_value = mock_session_instance
             mock_session_instance.execute.side_effect = OperationalError(

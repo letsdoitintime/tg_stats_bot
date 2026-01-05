@@ -3,10 +3,9 @@
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import select
 
 from tgstats.enums import ChatType, MediaType, MembershipStatus
-from tgstats.models import Chat, GroupSettings, Membership, Message, Reaction, User
+from tgstats.models import Chat, Message, User
 from tgstats.repositories.factory import RepositoryFactory
 
 

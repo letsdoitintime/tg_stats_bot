@@ -23,7 +23,7 @@ def upgrade() -> None:
     op.drop_index('ix_reactions_emoji', table_name='reactions')
     op.drop_index('ix_reactions_chat_date', table_name='reactions')
     op.drop_table('reactions')
-    
+
     # Recreate with proper structure
     op.create_table('reactions',
     sa.Column('reaction_id', sa.Integer(), autoincrement=True, nullable=False),

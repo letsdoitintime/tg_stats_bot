@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('chat_id')
     )
-    
+
     # Create users table
     op.create_table('users',
         sa.Column('user_id', sa.BigInteger(), nullable=False),
@@ -40,7 +40,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint('user_id')
     )
-    
+
     # Create group_settings table
     op.create_table('group_settings',
         sa.Column('chat_id', sa.BigInteger(), nullable=False),
@@ -55,7 +55,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['chat_id'], ['chats.chat_id'], ),
         sa.PrimaryKeyConstraint('chat_id')
     )
-    
+
     # Create memberships table
     op.create_table('memberships',
         sa.Column('chat_id', sa.BigInteger(), nullable=False),
@@ -67,7 +67,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
         sa.PrimaryKeyConstraint('chat_id', 'user_id')
     )
-    
+
     # Create messages table
     op.create_table('messages',
         sa.Column('chat_id', sa.BigInteger(), nullable=False),
@@ -89,7 +89,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['user_id'], ['users.user_id'], ),
         sa.PrimaryKeyConstraint('chat_id', 'msg_id')
     )
-    
+
     # Create indexes
     op.create_index('ix_messages_chat_date', 'messages', ['chat_id', 'date'], unique=False)
     op.create_index('ix_messages_chat_user_date', 'messages', ['chat_id', 'user_id', 'date'], unique=False)
@@ -99,7 +99,7 @@ def downgrade() -> None:
     # Drop indexes
     op.drop_index('ix_messages_chat_user_date', table_name='messages')
     op.drop_index('ix_messages_chat_date', table_name='messages')
-    
+
     # Drop tables in reverse order
     op.drop_table('messages')
     op.drop_table('memberships')

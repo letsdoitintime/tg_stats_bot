@@ -21,9 +21,9 @@ if not config.get_main_option("sqlalchemy.url"):
     # Load from .env file if needed
     from dotenv import load_dotenv
     load_dotenv()
-    
+
     database_url = os.getenv(
-        "DATABASE_URL", 
+        "DATABASE_URL",
         "postgresql+psycopg://andrew@localhost:5432/tgstats"
     )
     config.set_main_option("sqlalchemy.url", database_url)
