@@ -25,6 +25,23 @@ async def get_chats(
     """
     Get list of known chats with 30-day statistics.
 
+    Returns a list of all chats tracked by the bot, including:
+    - Chat ID and title
+    - Message count for the last 30 days
+    - Average daily active users (DAU) for the last 30 days
+
+    **Example Response:**
+    ```json
+    [
+        {
+            "chat_id": -1001234567890,
+            "title": "My Awesome Group",
+            "msg_count_30d": 1543,
+            "avg_dau_30d": 42.5
+        }
+    ]
+    ```
+
     Returns:
         List of chat summaries with message counts and DAU
     """

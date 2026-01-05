@@ -129,8 +129,13 @@ def cached(key_prefix: str, ttl: Optional[int] = None):
     """
 
     def decorator(func: Callable):
+        """Decorator function that wraps target with caching logic."""
         @wraps(func)
         async def wrapper(*args, **kwargs):
+            """
+            Async wrapper that checks cache before calling function.
+            Stores result in cache on miss for future requests.
+            """
             # Generate cache key from function name and arguments
             import hashlib
 

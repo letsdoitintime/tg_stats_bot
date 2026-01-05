@@ -33,6 +33,10 @@ def with_db_retry(func: Callable[..., T]) -> Callable[..., T]:
 
     @wraps(func)
     async def async_wrapper(*args: Any, **kwargs: Any) -> T:
+        """
+        Async wrapper that retries database operations on transient failures.
+        Uses exponential backoff between retry attempts.
+        """
         last_exception = None
 
         for attempt in range(settings.db_retry_attempts):
