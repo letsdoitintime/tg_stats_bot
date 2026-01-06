@@ -203,7 +203,7 @@ class EngagementPlugin(CommandPlugin):
         # Use optimized method to get leaderboard with user details
         engagement_service = EngagementScoringService(session)
         include_metrics = getattr(self, "_include_message_count", False)
-        
+
         leaderboard_data = await engagement_service.get_leaderboard_with_details(
             chat_id=chat_id,
             days=30,
@@ -247,7 +247,7 @@ class EngagementPlugin(CommandPlugin):
 
         # Log the full message before sending
         message = message + "\n".join(leaderboard_entries)
-        
+
         # Count total users by recalculating (cached from previous call)
         scores = await engagement_service.calculate_chat_engagement_scores(
             chat_id=chat_id, days=30, min_messages=5
@@ -290,7 +290,7 @@ class EngagementPlugin(CommandPlugin):
         # Use optimized method to get thread-scoped leaderboard
         engagement_service = EngagementScoringService(session)
         include_metrics = getattr(self, "_include_message_count", False)
-        
+
         leaderboard_data = await engagement_service.get_leaderboard_with_details(
             chat_id=chat_id,
             days=30,
@@ -324,7 +324,7 @@ class EngagementPlugin(CommandPlugin):
                 leaderboard_entries.append(entry)
 
         message = message + "\n".join(leaderboard_entries)
-        
+
         # Count total users in thread
         scores = await engagement_service.calculate_chat_engagement_scores(
             chat_id=chat_id, days=30, min_messages=5, thread_id=thread_id

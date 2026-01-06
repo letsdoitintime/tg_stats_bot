@@ -362,8 +362,8 @@ class TestEngagementServiceFixes:
             f"got {metrics.reactions_received}"
         )
         assert metrics.reactions_given == 3, (
-            f"Expected 3 reactions given (including self-reaction on own message, excluding removed), "
-            f"got {metrics.reactions_given}"
+            f"Expected 3 reactions given (including self-reaction on own message, "
+            f"excluding removed), got {metrics.reactions_given}"
         )
         assert metrics.replies_received == 1, (
             f"Expected 1 reply received (excluding self-reply), got {metrics.replies_received}"

@@ -13,7 +13,7 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from ..models import Message, Reaction
+from ..models import Message, Reaction, User
 from .base import BaseService
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ class EngagementScoringService(BaseService):
     def __init__(self, session: AsyncSession, repo_factory: "RepositoryFactory" = None):
         """
         Initialize engagement scoring service.
-        
+
         Args:
             session: Database session
             repo_factory: Optional repository factory (created if not provided)
@@ -188,15 +188,15 @@ class EngagementScoringService(BaseService):
         thread_id: Optional[int] = None,
         limit: int = 10,
         include_metrics: bool = False,
-    ) -> List[tuple[EngagementScore, Optional["User"], Optional[EngagementMetrics]]]:
+    ) -> List[tuple[EngagementScore, Optional[User], Optional[EngagementMetrics]]]:
         """
         Get engagement leaderboard with user details in an optimized way.
-        
+
         This method reduces the N+1 query problem by:
         1. Calculating scores for all users
         2. Batch-fetching user details for top N users
         3. Optionally batch-fetching metrics for top N users
-        
+
         Args:
             chat_id: Chat ID to analyze
             days: Number of days to analyze
@@ -204,7 +204,7 @@ class EngagementScoringService(BaseService):
             thread_id: Optional thread ID to scope to specific thread
             limit: Maximum number of users to return (default: 10)
             include_metrics: Whether to include detailed metrics (default: False)
-            
+
         Returns:
             List of tuples (EngagementScore, User, Optional[EngagementMetrics])
         """
@@ -263,16 +263,16 @@ class EngagementScoringService(BaseService):
     ) -> EngagementMetrics:
         """
         Get detailed engagement metrics for a user.
-        
+
         Public method used by plugins and other services to retrieve
         comprehensive engagement statistics for a specific user.
-        
+
         Args:
             chat_id: Chat ID to analyze
             user_id: User ID to get metrics for
             days: Number of days to analyze
             thread_id: Optional thread ID to scope metrics to a specific thread
-            
+
         Returns:
             EngagementMetrics with detailed statistics
         """
