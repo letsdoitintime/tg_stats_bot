@@ -15,7 +15,6 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from tgstats.core.exceptions import ChatNotSetupError
 from tgstats.plugins.base import CommandPlugin, PluginMetadata
 from tgstats.repositories.chat_repository import ChatRepository
-from tgstats.repositories.user_repository import UserRepository
 from tgstats.services.engagement_service import EngagementScoringService
 from tgstats.utils.decorators import group_only, with_db_session
 
@@ -201,28 +200,28 @@ class EngagementPlugin(CommandPlugin):
         # Leaderboard is public - no admin check needed
         # Anyone in the group can view engagement scores
 
-        # Calculate scores for all users (no status message to avoid flood control)
+        # Use optimized method to get leaderboard with user details
         engagement_service = EngagementScoringService(session)
-        scores = await engagement_service.calculate_chat_engagement_scores(
+        include_metrics = getattr(self, "_include_message_count", False)
+
+        leaderboard_data = await engagement_service.get_leaderboard_with_details(
             chat_id=chat_id,
             days=30,
             min_messages=5,
+            limit=10,
+            include_metrics=include_metrics,
         )
 
-        if not scores:
+        if not leaderboard_data:
             await update.message.reply_text("No active users found in the last 30 days.")
             return
-
-        # Get user details
-        user_repo = UserRepository(session)
 
         # Format leaderboard (top 10)
         message = "🏆 Engagement Leaderboard (Last 30 Days)\n\n"
 
         # Build list with detailed logging to debug parsing issues
         leaderboard_entries = []
-        for idx, score in enumerate(scores[:10], 1):
-            user = await user_repo.get_by_user_id(score.user_id)
+        for idx, (score, user, metrics) in enumerate(leaderboard_data, 1):
             if user:
                 username = user.username or user.first_name or f"User {user.user_id}"
                 username_html = html_escape(username)
@@ -230,10 +229,7 @@ class EngagementPlugin(CommandPlugin):
                 entry = f"{medal} <b>{username_html}</b>: {score.total_score:.1f}"
 
                 # Optionally include message/reply counts
-                if getattr(self, "_include_message_count", False):
-                    metrics = await engagement_service.get_engagement_metrics(
-                        chat_id, score.user_id, 30
-                    )
+                if metrics:
                     entry += (
                         f" ({metrics.message_count} msgs, {metrics.reply_count} 🔁, "
                         f"{metrics.replies_received} 📥)"
@@ -251,6 +247,11 @@ class EngagementPlugin(CommandPlugin):
 
         # Log the full message before sending
         message = message + "\n".join(leaderboard_entries)
+
+        # Count total users by recalculating (cached from previous call)
+        scores = await engagement_service.calculate_chat_engagement_scores(
+            chat_id=chat_id, days=30, min_messages=5
+        )
         message += f"\n\n{len(scores)} active users total"
 
         logger.info(
@@ -286,37 +287,35 @@ class EngagementPlugin(CommandPlugin):
         if not chat or not chat.settings:
             raise ChatNotSetupError("This chat hasn't been set up yet. Use /setup first.")
 
-        # Calculate thread-scoped scores
+        # Use optimized method to get thread-scoped leaderboard
         engagement_service = EngagementScoringService(session)
-        scores = await engagement_service.calculate_chat_engagement_scores(
+        include_metrics = getattr(self, "_include_message_count", False)
+
+        leaderboard_data = await engagement_service.get_leaderboard_with_details(
             chat_id=chat_id,
             days=30,
             min_messages=5,
             thread_id=thread_id,
+            limit=10,
+            include_metrics=include_metrics,
         )
 
-        if not scores:
+        if not leaderboard_data:
             await update.message.reply_text(
                 "No active users found in this thread in the last 30 days."
             )
             return
 
-        user_repo = UserRepository(session)
-
         message = "🏆 Topic Engagement Leaderboard (Last 30 Days)\n\n"
         leaderboard_entries = []
-        for idx, score in enumerate(scores[:10], 1):
-            user = await user_repo.get_by_user_id(score.user_id)
+        for idx, (score, user, metrics) in enumerate(leaderboard_data, 1):
             if user:
                 username = user.username or user.first_name or f"User {user.user_id}"
                 username_html = html_escape(username)
                 medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"{idx}."
                 entry = f"{medal} <b>{username_html}</b>: {score.total_score:.1f}"
 
-                if getattr(self, "_include_message_count", False):
-                    metrics = await engagement_service.get_engagement_metrics(
-                        chat_id, score.user_id, 30, thread_id
-                    )
+                if metrics:
                     entry += (
                         f" ({metrics.message_count} msgs, {metrics.reply_count} 🔁, "
                         f"{metrics.replies_received} 📥)"
@@ -325,6 +324,11 @@ class EngagementPlugin(CommandPlugin):
                 leaderboard_entries.append(entry)
 
         message = message + "\n".join(leaderboard_entries)
+
+        # Count total users in thread
+        scores = await engagement_service.calculate_chat_engagement_scores(
+            chat_id=chat_id, days=30, min_messages=5, thread_id=thread_id
+        )
         message += f"\n\n{len(scores)} active users in thread"
 
         await update.message.reply_text(message, parse_mode="HTML")
