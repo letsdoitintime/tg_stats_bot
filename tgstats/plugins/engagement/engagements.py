@@ -156,7 +156,7 @@ class EngagementPlugin(CommandPlugin):
         )
 
         # Get detailed metrics
-        metrics = await engagement_service._get_engagement_metrics(chat_id, user_id, 30, thread_id)
+        metrics = await engagement_service.get_engagement_metrics(chat_id, user_id, 30, thread_id)
 
         # Format detailed message
         message = (
@@ -237,7 +237,7 @@ class EngagementPlugin(CommandPlugin):
 
                 # Optionally include message/reply counts
                 if getattr(self, "_include_message_count", False):
-                    metrics = await engagement_service._get_engagement_metrics(
+                    metrics = await engagement_service.get_engagement_metrics(
                         chat_id, score.user_id, 30
                     )
                     entry += (
@@ -320,7 +320,7 @@ class EngagementPlugin(CommandPlugin):
                 entry = f"{medal} <b>{username_html}</b>: {score.total_score:.1f}"
 
                 if getattr(self, "_include_message_count", False):
-                    metrics = await engagement_service._get_engagement_metrics(
+                    metrics = await engagement_service.get_engagement_metrics(
                         chat_id, score.user_id, 30, thread_id
                     )
                     entry += (

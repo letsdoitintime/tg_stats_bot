@@ -6,7 +6,7 @@ message content, and interaction with the community.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import structlog
 from sqlalchemy import func, select
@@ -14,8 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from ..models import Message, Reaction
-from ..repositories.message_repository import MessageRepository
-from ..repositories.user_repository import UserRepository
+from .base import BaseService
+
+if TYPE_CHECKING:
+    from ..repositories.factory import RepositoryFactory
 
 logger = structlog.get_logger(__name__)
 
@@ -49,7 +51,7 @@ class EngagementMetrics:
     reply_count: int
 
 
-class EngagementScoringService:
+class EngagementScoringService(BaseService):
     """Service for calculating user engagement scores."""
 
     # Scoring weights
@@ -58,10 +60,15 @@ class EngagementScoringService:
     QUALITY_WEIGHT = 0.25  # 25% - Message quality
     INTERACTION_WEIGHT = 0.20  # 20% - Community interaction
 
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.message_repo = MessageRepository(session)
-        self.user_repo = UserRepository(session)
+    def __init__(self, session: AsyncSession, repo_factory: "RepositoryFactory" = None):
+        """
+        Initialize engagement scoring service.
+        
+        Args:
+            session: Database session
+            repo_factory: Optional repository factory (created if not provided)
+        """
+        super().__init__(session, repo_factory)
 
     async def calculate_engagement_score(
         self,
@@ -82,7 +89,7 @@ class EngagementScoringService:
             EngagementScore with breakdown of scores
         """
         # Get engagement metrics
-        metrics = await self._get_engagement_metrics(chat_id, user_id, days, thread_id)
+        metrics = await self.get_engagement_metrics(chat_id, user_id, days, thread_id)
 
         # Calculate individual scores
         activity_score = await self._calculate_activity_score(metrics, days)
@@ -172,21 +179,38 @@ class EngagementScoringService:
 
         return scores
 
-    async def _get_engagement_metrics(
+    async def get_engagement_metrics(
         self,
         chat_id: int,
         user_id: int,
         days: int,
         thread_id: Optional[int] = None,
     ) -> EngagementMetrics:
-        """Get detailed engagement metrics for a user."""
+        """
+        Get detailed engagement metrics for a user.
+        
+        Public method used by plugins and other services to retrieve
+        comprehensive engagement statistics for a specific user.
+        
+        Args:
+            chat_id: Chat ID to analyze
+            user_id: User ID to get metrics for
+            days: Number of days to analyze
+            thread_id: Optional thread ID to scope metrics to a specific thread
+            
+        Returns:
+            EngagementMetrics with detailed statistics
+        """
         since = datetime.now() - timedelta(days=days)
 
-        # Message statistics
+        # Message statistics - aggregate basic message metrics
+        # Uses direct query on Message table for performance
+        # Note: date_trunc is PostgreSQL-specific; for SQLite we use DATE(date)
+        # SQLAlchemy will translate func.date() appropriately for each dialect
         msg_query = select(
             func.count(Message.msg_id).label("message_count"),
             func.avg(Message.text_len).label("avg_length"),
-            func.count(func.distinct(func.date_trunc("day", Message.date))).label("days_active"),
+            func.count(func.distinct(func.date(Message.date))).label("days_active"),
             func.sum(Message.urls_cnt).label("url_count"),
             func.count().filter(Message.media_type.isnot(None)).label("media_count"),
         ).where(Message.chat_id == chat_id, Message.user_id == user_id, Message.date >= since)
@@ -197,8 +221,9 @@ class EngagementScoringService:
         msg_result = await self.session.execute(msg_query)
         msg_stats = msg_result.one()
 
-        # Reaction statistics (reactions given)
-        # Reactions given (limit to thread if thread_id provided)
+        # Reactions given by the user
+        # Joins Reaction to Message to enable thread filtering
+        # Filters by Reaction.user_id to get reactions given BY this user
         reactions_given_query = (
             select(func.count(Reaction.reaction_id))
             .join(
@@ -212,7 +237,9 @@ class EngagementScoringService:
 
         reactions_given = await self.session.scalar(reactions_given_query) or 0
 
-        # Reactions received
+        # Reactions received on user's messages
+        # Joins Reaction to Message to get the message author
+        # Filters by Message.user_id to get reactions ON this user's messages
         reactions_received_query = (
             select(func.count(Reaction.reaction_id))
             .join(
@@ -228,7 +255,8 @@ class EngagementScoringService:
 
         reactions_received = await self.session.scalar(reactions_received_query) or 0
 
-        # Reply count (messages with reply_to_msg_id) -- replies sent by the user
+        # Reply count - messages sent by user that are replies to other messages
+        # Counts messages with reply_to_msg_id set (reply messages sent by this user)
         reply_query = select(func.count(Message.msg_id)).where(
             Message.chat_id == chat_id,
             Message.user_id == user_id,
@@ -241,7 +269,12 @@ class EngagementScoringService:
 
         reply_count = await self.session.scalar(reply_query) or 0
 
-        # Replies received: count messages that reply to messages authored by the user
+        # Replies received - count messages that are replies TO this user's messages
+        # Uses aliased join to connect reply messages with their target (original) messages
+        # - 'Message' = the reply message (what we're counting)
+        # - 'target' = the original message that was replied to (must be authored by user_id)
+        # Filters by Message.date to count replies sent during the time period
+        # Note: We filter by Message.date (when reply was sent) to match the time period
         target = aliased(Message, name="target")
         replies_received_query = (
             select(func.count(Message.msg_id))
@@ -253,7 +286,10 @@ class EngagementScoringService:
         )
 
         if thread_id is not None:
-            replies_received_query = replies_received_query.where(Message.thread_id == thread_id)
+            # Filter both the reply and the original message by thread_id
+            replies_received_query = replies_received_query.where(
+                Message.thread_id == thread_id, target.thread_id == thread_id
+            )
 
         replies_received = await self.session.scalar(replies_received_query) or 0
 
