@@ -191,8 +191,6 @@ class EngagementPlugin(CommandPlugin):
     ) -> None:
         """Show engagement leaderboard (top 10 users)."""
         chat_id = update.effective_chat.id
-        # Always show chat-wide leaderboard regardless of thread
-        thread_id = None
 
         # Check if chat is set up
         chat_repo = ChatRepository(session)
@@ -219,11 +217,7 @@ class EngagementPlugin(CommandPlugin):
         user_repo = UserRepository(session)
 
         # Format leaderboard (top 10)
-        # Use plain text to avoid any parsing issues
-        header = "🏆 Engagement Leaderboard (Last 30 Days)"
-        if thread_id is not None:
-            header += " — Thread scope"
-        message = header + "\n\n"
+        message = "🏆 Engagement Leaderboard (Last 30 Days)\n\n"
 
         # Build list with detailed logging to debug parsing issues
         leaderboard_entries = []

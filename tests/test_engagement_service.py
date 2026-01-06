@@ -234,3 +234,88 @@ class TestEngagementScoringService:
         assert not hasattr(service, "_get_engagement_metrics") or hasattr(
             service, "get_engagement_metrics"
         )
+
+    async def test_null_user_id_excluded_from_leaderboard(self, test_session):
+        """Test that messages with NULL user_id are excluded from leaderboard calculations."""
+        # Setup
+        chat = Chat(chat_id=123, title="Test", type=ChatType.GROUP)
+        user = User(user_id=100, first_name="User1")
+        test_session.add_all([chat, user])
+        await test_session.commit()
+
+        now = datetime.now(timezone.utc)
+
+        # Add messages from the user
+        for i in range(10):
+            msg = Message(
+                chat_id=123,
+                msg_id=i + 1,
+                user_id=100,
+                date=now - timedelta(days=i),
+                text_len=50,
+            )
+            test_session.add(msg)
+
+        # Add system messages with NULL user_id (e.g., join/leave messages)
+        for i in range(5):
+            system_msg = Message(
+                chat_id=123,
+                msg_id=100 + i,
+                user_id=None,  # System message
+                date=now - timedelta(days=i),
+                text_len=20,
+            )
+            test_session.add(system_msg)
+
+        await test_session.commit()
+
+        # Calculate scores - should only include user 100, not NULL user
+        service = EngagementScoringService(test_session)
+        scores = await service.calculate_chat_engagement_scores(
+            chat_id=123, days=30, min_messages=5
+        )
+
+        # Should have exactly 1 user (not NULL)
+        assert len(scores) == 1
+        assert scores[0].user_id == 100
+
+    async def test_timezone_aware_date_filtering(self, test_session):
+        """Test that date filtering works correctly with timezone-aware datetimes."""
+        # Setup
+        chat = Chat(chat_id=123, title="Test", type=ChatType.GROUP)
+        user = User(user_id=100, first_name="User1")
+        test_session.add_all([chat, user])
+        await test_session.commit()
+
+        now = datetime.now(timezone.utc)
+
+        # Add messages within the 30-day window
+        for i in range(5):
+            msg = Message(
+                chat_id=123,
+                msg_id=i + 1,
+                user_id=100,
+                date=now - timedelta(days=i),
+                text_len=50,
+            )
+            test_session.add(msg)
+
+        # Add messages outside the 30-day window
+        for i in range(5):
+            old_msg = Message(
+                chat_id=123,
+                msg_id=100 + i,
+                user_id=100,
+                date=now - timedelta(days=40 + i),  # 40+ days ago
+                text_len=50,
+            )
+            test_session.add(old_msg)
+
+        await test_session.commit()
+
+        # Calculate metrics - should only count recent messages
+        service = EngagementScoringService(test_session)
+        metrics = await service.get_engagement_metrics(chat_id=123, user_id=100, days=30)
+
+        # Should only count the 5 recent messages
+        assert metrics.message_count == 5

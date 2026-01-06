@@ -5,7 +5,7 @@ message content, and interaction with the community.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, List, Optional
 
 import structlog
@@ -141,12 +141,13 @@ class EngagementScoringService(BaseService):
             List of EngagementScore objects sorted by total score
         """
         # Get active users
-        since = datetime.now() - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
         query = (
             select(Message.user_id, func.count(Message.msg_id).label("count"))
             .where(Message.chat_id == chat_id)
             .where(Message.date >= since)
+            .where(Message.user_id.isnot(None))  # Exclude messages without user (system messages)
         )
 
         if thread_id is not None:
@@ -201,7 +202,7 @@ class EngagementScoringService(BaseService):
         Returns:
             EngagementMetrics with detailed statistics
         """
-        since = datetime.now() - timedelta(days=days)
+        since = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Message statistics - aggregate basic message metrics
         # Uses direct query on Message table for performance
