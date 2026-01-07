@@ -58,24 +58,23 @@ class TestBotTimeoutConfiguration:
 
     def test_invalid_get_updates_timeout_exact_boundary(self):
         """Test boundary condition for get_updates_read_timeout."""
-        # Exactly at boundary should PASS (>= not just >)
-        # This is correct: read_timeout must be >= get_updates_timeout + 10
-        settings = Settings(
-            bot_token="test_token",
-            database_url="postgresql://localhost/test",
-            bot_get_updates_timeout=30,
-            bot_get_updates_read_timeout=40.0,  # Exactly 30 + 10 = valid (>=)
-        )
-        assert settings.bot_get_updates_read_timeout == 40.0
-
-        # Below boundary should fail
+        # Exactly at boundary should fail (must be GREATER THAN, not >=)
         with pytest.raises(ValidationError):
             Settings(
                 bot_token="test_token",
                 database_url="postgresql://localhost/test",
                 bot_get_updates_timeout=30,
-                bot_get_updates_read_timeout=39.9,  # < 40, should fail
+                bot_get_updates_read_timeout=40.0,  # Exactly 30 + 10, but needs to be >
             )
+
+        # Just above boundary should pass
+        settings = Settings(
+            bot_token="test_token",
+            database_url="postgresql://localhost/test",
+            bot_get_updates_timeout=30,
+            bot_get_updates_read_timeout=40.1,  # > 40, valid
+        )
+        assert settings.bot_get_updates_read_timeout == 40.1
 
     def test_custom_timeout_values(self):
         """Test custom timeout values."""

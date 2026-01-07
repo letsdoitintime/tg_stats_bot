@@ -62,6 +62,7 @@ from .handlers.messages import handle_edited_message, handle_message
 from .handlers.reactions import handle_message_reaction
 from .plugins import PluginManager
 from .utils.logging import configure_third_party_logging, setup_logging
+from .utils.network_monitor import get_network_monitor
 
 # Configure logging
 setup_logging(
@@ -120,8 +121,6 @@ async def error_handler(update: object, context) -> None:
     """Enhanced global error handler with detailed logging."""
     # Import here to avoid circular dependency issues
     from telegram.error import NetworkError, RetryAfter, TimedOut
-
-    from .utils.network_monitor import get_network_monitor
 
     # Get network monitor
     monitor = get_network_monitor()
@@ -325,8 +324,6 @@ async def run_polling_mode(application: Application) -> None:
     logger.info("Bot is running in polling mode. Press Ctrl+C to stop.")
 
     # Start network health monitoring in background
-    from .utils.network_monitor import get_network_monitor
-
     monitor = get_network_monitor()
     health_check_task = asyncio.create_task(monitor.periodic_health_check(interval_seconds=300))
 

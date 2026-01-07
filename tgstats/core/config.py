@@ -165,10 +165,10 @@ class Settings(BaseSettings):
         # get_updates read timeout must be larger than long-polling timeout + buffer
         # This prevents read timeout errors during normal operation
         min_read_timeout = self.bot_get_updates_timeout + 10.0
-        if self.bot_get_updates_read_timeout < min_read_timeout:
+        if self.bot_get_updates_read_timeout <= min_read_timeout:
             raise ValueError(
                 f"bot_get_updates_read_timeout ({self.bot_get_updates_read_timeout}s) must be "
-                f"at least bot_get_updates_timeout + 10s buffer ({min_read_timeout}s)"
+                f"greater than bot_get_updates_timeout + 10s buffer ({min_read_timeout}s)"
             )
         return self
 
