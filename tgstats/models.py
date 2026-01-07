@@ -91,8 +91,8 @@ class Membership(Base):
 
     chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.chat_id"), primary_key=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.user_id"), primary_key=True)
-    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    left_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    left_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     status_current: Mapped[MembershipStatus] = mapped_column(String(20))
 
     # Relationships
@@ -127,8 +127,8 @@ class Message(Base):
     chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.chat_id"), primary_key=True)
     msg_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("users.user_id"))
-    date: Mapped[datetime] = mapped_column(DateTime)
-    edit_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    edit_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     thread_id: Mapped[Optional[int]] = mapped_column(Integer)
     reply_to_msg_id: Mapped[Optional[int]] = mapped_column(Integer)
     has_media: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -147,7 +147,7 @@ class Message(Base):
     forward_from_message_id: Mapped[Optional[int]] = mapped_column(Integer)
     forward_signature: Mapped[Optional[str]] = mapped_column(String(255))
     forward_sender_name: Mapped[Optional[str]] = mapped_column(String(255))
-    forward_date: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    forward_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     is_automatic_forward: Mapped[Optional[bool]] = mapped_column(Boolean)
 
     # Additional message metadata
@@ -199,8 +199,8 @@ class Reaction(Base):
     user_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("users.user_id"))
     reaction_emoji: Mapped[str] = mapped_column(String(100))
     is_big: Mapped[bool] = mapped_column(Boolean, default=False)
-    date: Mapped[datetime] = mapped_column(DateTime, default=func.now())
-    removed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    removed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     # Relationships
     chat: Mapped["Chat"] = relationship("Chat", overlaps="reactions")
