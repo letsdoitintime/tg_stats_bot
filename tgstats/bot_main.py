@@ -62,6 +62,7 @@ from .handlers.messages import handle_edited_message, handle_message
 from .handlers.reactions import handle_message_reaction
 from .plugins import PluginManager
 from .utils.logging import configure_third_party_logging, setup_logging
+from .utils.network_monitor import get_network_monitor
 
 # Configure logging
 setup_logging(
@@ -121,15 +122,24 @@ async def error_handler(update: object, context) -> None:
     # Import here to avoid circular dependency issues
     from telegram.error import NetworkError, RetryAfter, TimedOut
 
+    # Get network monitor
+    monitor = get_network_monitor()
+
     # Check if it's a network-related error that should be handled quietly
     if isinstance(context.error, (NetworkError, TimedOut, RetryAfter)):
+        # Record the error for monitoring
+        error_type = type(context.error).__name__
+        error_message = str(context.error)
+        monitor.record_error(error_type, error_message)
+
         # Only log at DEBUG level for transient network errors
         # These are automatically retried by python-telegram-bot
         logger.debug(
             "transient_network_error",
-            error_type=type(context.error).__name__,
-            error=str(context.error),
+            error_type=error_type,
+            error=error_message,
             update_id=update.update_id if hasattr(update, "update_id") else None,
+            consecutive_errors=monitor.get_health_status()["consecutive_errors"],
         )
         # These errors are typically transient and automatically retried
         return
@@ -159,13 +169,25 @@ async def error_handler(update: object, context) -> None:
 
 def create_application() -> Application:
     """Create and configure the Telegram bot application with optimizations."""
-    # Configure HTTP request with connection pooling from settings
+    # Configure HTTP request with connection pooling for regular bot operations
     request = HTTPXRequest(
         connection_pool_size=settings.bot_connection_pool_size,
         read_timeout=settings.bot_read_timeout,
         write_timeout=settings.bot_write_timeout,
         connect_timeout=settings.bot_connect_timeout,
         pool_timeout=settings.bot_pool_timeout,
+        http_version="1.1",  # Use HTTP/1.1 for better stability with long-polling
+    )
+
+    # Configure separate request handler for get_updates with higher timeouts
+    # This is critical for long-polling stability - read_timeout must be > poll timeout
+    get_updates_request = HTTPXRequest(
+        connection_pool_size=settings.bot_connection_pool_size,
+        read_timeout=settings.bot_get_updates_read_timeout,
+        write_timeout=settings.bot_write_timeout,
+        connect_timeout=settings.bot_get_updates_connect_timeout,
+        pool_timeout=settings.bot_get_updates_pool_timeout,
+        http_version="1.1",  # Use HTTP/1.1 for better stability
     )
 
     # Create application with optimizations
@@ -173,6 +195,7 @@ def create_application() -> Application:
         Application.builder()
         .token(settings.bot_token)
         .request(request)
+        .get_updates_request(get_updates_request)  # Dedicated request handler for polling
         .concurrent_updates(True)
         .build()
     )
@@ -279,13 +302,30 @@ async def run_polling_mode(application: Application) -> None:
     # Setup plugins
     await setup_plugins(application)
 
-    # Start polling with explicit timeout configuration
+    # Start polling with explicit timeout configuration and bootstrap retries
+    # - timeout: how long Telegram waits for new updates (long-polling)
+    # - poll_interval: delay between get_updates calls (0 = no delay)
+    # - bootstrap_retries: retries on startup connection errors (-1 = infinite)
+    logger.info(
+        "starting_polling",
+        get_updates_timeout=settings.bot_get_updates_timeout,
+        poll_interval=settings.bot_poll_interval,
+        bootstrap_retries=settings.bot_bootstrap_retries,
+        get_updates_read_timeout=settings.bot_get_updates_read_timeout,
+    )
+    
     await application.updater.start_polling(
         allowed_updates=Update.ALL_TYPES,
-        timeout=settings.bot_get_updates_timeout,  # Long-polling timeout for getUpdates
+        timeout=settings.bot_get_updates_timeout,
+        poll_interval=settings.bot_poll_interval,
+        bootstrap_retries=settings.bot_bootstrap_retries,
     )
 
     logger.info("Bot is running in polling mode. Press Ctrl+C to stop.")
+
+    # Start network health monitoring in background
+    monitor = get_network_monitor()
+    health_check_task = asyncio.create_task(monitor.periodic_health_check(interval_seconds=300))
 
     # Create a future for shutdown signal
     shutdown_event = asyncio.Event()
@@ -306,6 +346,13 @@ async def run_polling_mode(application: Application) -> None:
     finally:
         logger.info("Shutting down bot...")
         try:
+            # Cancel health check task
+            health_check_task.cancel()
+            try:
+                await health_check_task
+            except asyncio.CancelledError:
+                pass
+
             # Stop hot reload first
             await plugin_manager.stop_hot_reload()
 

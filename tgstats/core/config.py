@@ -69,10 +69,24 @@ class Settings(BaseSettings):
     bot_connect_timeout: float = Field(default=15.0, env="BOT_CONNECT_TIMEOUT")
     bot_pool_timeout: float = Field(default=15.0, env="BOT_POOL_TIMEOUT")
 
+    # Dedicated get_updates connection settings (for polling)
+    # These should be higher than regular bot operations due to long-polling
+    # get_updates_read_timeout MUST be > bot_get_updates_timeout + 10s buffer
+    bot_get_updates_read_timeout: float = Field(default=50.0, env="BOT_GET_UPDATES_READ_TIMEOUT")
+    bot_get_updates_connect_timeout: float = Field(default=20.0, env="BOT_GET_UPDATES_CONNECT_TIMEOUT")
+    bot_get_updates_pool_timeout: float = Field(default=20.0, env="BOT_GET_UPDATES_POOL_TIMEOUT")
+
     # Network retry settings for bot updates
     bot_get_updates_timeout: int = Field(
         default=30, env="BOT_GET_UPDATES_TIMEOUT"
-    )  # Long-polling timeout
+    )  # Long-polling timeout (seconds Telegram waits for new updates)
+    
+    # Poll interval - seconds to wait between get_updates calls (0 = no wait)
+    bot_poll_interval: float = Field(default=0.0, env="BOT_POLL_INTERVAL")
+    
+    # Bootstrap retries - number of retries on connection errors at startup
+    # -1 means infinite retries (recommended for production)
+    bot_bootstrap_retries: int = Field(default=-1, env="BOT_BOOTSTRAP_RETRIES")
 
     # Network loop retry configuration
     bot_network_retry_attempts: int = Field(default=5, env="BOT_NETWORK_RETRY_ATTEMPTS")
@@ -143,6 +157,19 @@ class Settings(BaseSettings):
             raise ValueError("db_pool_size should not exceed 50")
         if self.db_max_overflow > 100:
             raise ValueError("db_max_overflow should not exceed 100")
+        return self
+
+    @model_validator(mode="after")
+    def validate_bot_timeouts(self) -> "Settings":
+        """Validate bot timeout configuration for polling mode."""
+        # get_updates read timeout must be larger than long-polling timeout + buffer
+        # This prevents read timeout errors during normal operation
+        min_read_timeout = self.bot_get_updates_timeout + 10.0
+        if self.bot_get_updates_read_timeout <= min_read_timeout:
+            raise ValueError(
+                f"bot_get_updates_read_timeout ({self.bot_get_updates_read_timeout}s) must be "
+                f"greater than bot_get_updates_timeout + 10s buffer ({min_read_timeout}s)"
+            )
         return self
 
     class Config:

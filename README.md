@@ -94,9 +94,14 @@ The system automatically detects TimescaleDB availability:
 All project documentation is organized in the `documentation/` folder:
 
 - **[Documentation Index](documentation/README.md)** - Complete guide to all available docs
+- **[Network Error Handling](documentation/NETWORK_ERROR_HANDLING.md)** - Long-running bot stability guide
 - **Database Setup** - PostgreSQL configuration, users, remote access
 - **DBeaver Connection** - GUI database access guide  
 - **Feature Guides** - Reaction analysis, message storage, etc.
+
+### Important for Production
+
+⚠️ **Long-Running Stability**: If you experience network errors after ~24 hours of operation, see the [Network Error Handling Guide](documentation/NETWORK_ERROR_HANDLING.md) for proper timeout configuration.
 
 ## 🔌 API Endpoints
 
