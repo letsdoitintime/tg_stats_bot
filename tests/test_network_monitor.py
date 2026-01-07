@@ -17,6 +17,7 @@ class TestNetworkHealthMonitor:
         assert monitor._consecutive_errors == 0
         assert monitor._last_error_time is None
         assert monitor._last_success_time is None
+        assert len(monitor._recent_errors) == 0
 
     def test_record_error(self):
         """Test recording network errors."""
@@ -28,11 +29,13 @@ class TestNetworkHealthMonitor:
         assert monitor._consecutive_errors == 1
         assert monitor._last_error_time is not None
         assert "NetworkError" in monitor._error_types
+        assert len(monitor._recent_errors) == 1
 
         # Record second error
         monitor.record_error("TimedOut", "Request timed out")
         assert monitor._network_errors_count == 2
         assert monitor._consecutive_errors == 2
+        assert len(monitor._recent_errors) == 2
 
     def test_record_success(self):
         """Test recording successful operations."""

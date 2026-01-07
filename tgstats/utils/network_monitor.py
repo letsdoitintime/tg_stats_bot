@@ -6,6 +6,7 @@ persistent network errors that might indicate infrastructure problems.
 """
 
 import asyncio
+from collections import deque
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -24,6 +25,8 @@ class NetworkHealthMonitor:
         self._last_success_time: Optional[datetime] = None
         self._consecutive_errors = 0
         self._error_types: dict[str, int] = {}
+        # Track errors in the last 5 minutes for alerting
+        self._recent_errors: deque[datetime] = deque(maxlen=100)  # Max 100 recent errors
 
     def record_error(self, error_type: str, error_message: str) -> None:
         """
@@ -38,6 +41,7 @@ class NetworkHealthMonitor:
         self._network_errors_count += 1
         self._consecutive_errors += 1
         self._error_types[error_type] = self._error_types.get(error_type, 0) + 1
+        self._recent_errors.append(now)  # Track for alerting
 
         # Log based on severity (consecutive errors indicate persistent issue)
         if self._consecutive_errors >= 5:
@@ -113,16 +117,20 @@ class NetworkHealthMonitor:
         Returns:
             True if persistent errors warrant alerting
         """
-        # Alert if we've had many consecutive errors OR
-        # if we've had lots of errors recently
+        # Alert if we've had many consecutive errors
         if self._consecutive_errors >= 10:
             return True
 
-        # Check error rate in last 5 minutes
-        if self._last_error_time:
-            five_min_ago = datetime.now() - timedelta(minutes=5)
-            if self._last_error_time > five_min_ago and self._network_errors_count >= 20:
-                return True
+        # Check error rate in last 5 minutes (only count recent errors)
+        now = datetime.now()
+        five_min_ago = now - timedelta(minutes=5)
+        
+        # Count errors in the last 5 minutes
+        recent_error_count = sum(1 for error_time in self._recent_errors if error_time > five_min_ago)
+        
+        # Alert if we've had 20+ errors in the last 5 minutes
+        if recent_error_count >= 20:
+            return True
 
         return False
 
