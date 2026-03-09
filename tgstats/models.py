@@ -125,12 +125,12 @@ class Message(Base):
     __tablename__ = "messages"
 
     chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.chat_id"), primary_key=True)
-    msg_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    msg_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)  # Changed to BigInteger for large chats
     user_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("users.user_id"))
     date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     edit_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     thread_id: Mapped[Optional[int]] = mapped_column(Integer)
-    reply_to_msg_id: Mapped[Optional[int]] = mapped_column(Integer)
+    reply_to_msg_id: Mapped[Optional[int]] = mapped_column(BigInteger)  # Changed to BigInteger
     has_media: Mapped[bool] = mapped_column(Boolean, default=False)
     media_type: Mapped[MediaType] = mapped_column(String(20), default=MediaType.TEXT)
     text_raw: Mapped[Optional[str]] = mapped_column(Text)
@@ -195,7 +195,7 @@ class Reaction(Base):
 
     reaction_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     chat_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("chats.chat_id"))
-    msg_id: Mapped[int] = mapped_column(Integer)
+    msg_id: Mapped[int] = mapped_column(BigInteger)  # Changed to BigInteger to match messages.msg_id
     user_id: Mapped[Optional[int]] = mapped_column(BigInteger, ForeignKey("users.user_id"))
     reaction_emoji: Mapped[str] = mapped_column(String(100))
     is_big: Mapped[bool] = mapped_column(Boolean, default=False)
