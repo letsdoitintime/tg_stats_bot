@@ -39,8 +39,8 @@ df -h / | tail -1
 echo ""
 echo "--- PostgreSQL Stats ---"
 if command -v psql &> /dev/null; then
-    psql -U postgres -d tgstats -t -c "SELECT count(*) || ' active connections' FROM pg_stat_activity WHERE state = 'active';" 2>/dev/null || echo "Cannot query PostgreSQL"
-    psql -U postgres -d tgstats -t -c "SELECT pg_size_pretty(pg_database_size('tgstats')) || ' database size';" 2>/dev/null
+    sudo -u postgres psql -d tgstats -t -c "SELECT count(*) || ' active connections' FROM pg_stat_activity WHERE state = 'active';" 2>/dev/null || echo "Cannot query PostgreSQL"
+    sudo -u postgres psql -d tgstats -t -c "SELECT pg_size_pretty(pg_database_size('tgstats')) || ' database size';" 2>/dev/null
 else
     echo "psql not available"
 fi
