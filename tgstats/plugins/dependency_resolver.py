@@ -37,11 +37,15 @@ class PluginDependencyResolver:
             graph[name] = set(metadata.dependencies)
             in_degree[name] = 0
 
-        # Calculate in-degrees
+        # Calculate in-degrees: how many of THIS plugin's own dependencies are
+        # still unresolved. Incrementing in_degree[dep] instead counts dependents,
+        # which inverts the graph — every plugin that declares a dependency then
+        # starts with a non-zero in-degree, Kahn's queue is empty or partial, and
+        # the length check below reports a circular dependency that is not there.
+        # Deps outside `graph` are not loadable plugins and must not block the
+        # sort; validate_dependencies() reports those separately.
         for name, deps in graph.items():
-            for dep in deps:
-                if dep in in_degree:
-                    in_degree[dep] += 1
+            in_degree[name] = sum(1 for dep in deps if dep in graph)
 
         # Topological sort using Kahn's algorithm
         queue: List[str] = [name for name, degree in in_degree.items() if degree == 0]
@@ -62,7 +66,9 @@ class PluginDependencyResolver:
 
         # Check for circular dependencies
         if len(result) != len(plugins):
-            missing = set(plugins.keys()) - set(result)
+            # sorted() — a bare set renders in hash order, so the same failure
+            # would word itself differently between process restarts.
+            missing = sorted(set(plugins.keys()) - set(result))
             raise ValueError(f"Circular dependency detected in plugins: {missing}")
 
         self.logger.info("plugin_dependencies_resolved", load_order=result)
