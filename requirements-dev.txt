@@ -1,34 +1,30 @@
 # Development dependencies for TG Stats Bot
-# Updated: 2025-12-16
+# Reconciled against the running venv: 2026-07-22
+#
+# Pins now match what the venv actually has, so a fresh dev env reproduces the
+# same test result. Previously every pin here was stale (pytest-asyncio was
+# pinned 0.24.* while the venv ran 1.1.0 — a major), and aiosqlite was listed
+# but never installed, which made 57 tests fail at COLLECTION.
 
 # Testing
-pytest==8.3.*
-pytest-asyncio==0.24.*
-pytest-cov==6.0.*
-pytest-mock==3.14.*
-pytest-xdist==3.6.*
+pytest==8.4.*
+pytest-asyncio==1.1.*
+pytest-cov==7.0.*
+# Required by tests/conftest.py — TEST_DATABASE_URL is "sqlite+aiosqlite:///:memory:".
+# Without it the whole async test suite fails to collect.
 aiosqlite==0.20.*
 
 # Code quality
-ruff==0.8.*
-black==24.10.*
-isort==5.13.*
-mypy==1.13.*
-flake8==7.1.*
-pre-commit==4.0.*
+ruff==0.12.*
+black==25.1.*
+mypy==1.19.*
+# pre-commit is NOT installed in the venv and is not needed by the bot or the
+# tests; it installs its own pinned tool envs from .pre-commit-config.yaml, so
+# isort/flake8/black/mypy do not need duplicating here for the hooks to run.
+# Opt in per .pre-commit-config.yaml:  pip install pre-commit && pre-commit install
 
-# Testing utilities
-factory-boy==3.3.*
-faker==33.1.*
-responses==0.25.*
-freezegun==1.5.*
-
-# Development tools
-httpx==0.28.*  # For testing FastAPI endpoints
-ipython==8.31.*
-ipdb==0.13.*
-
-# Type stubs
-types-python-dateutil==2.9.*
-types-redis==4.6.*
-types-PyYAML==6.0.*
+# Dropped 2026-07-22 — listed but never installed, and nothing in tests/ imports
+# them: pytest-mock, pytest-xdist, isort, flake8, factory-boy, faker, responses,
+# freezegun, ipython, ipdb, types-python-dateutil, types-redis, types-PyYAML.
+# (The `factory` references in tests/ are the app's own ServiceFactory /
+# RepositoryFactory, not factory-boy.) httpx is a production pin already.
