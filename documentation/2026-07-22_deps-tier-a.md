@@ -44,7 +44,7 @@ the bump yields a different `emoji_cnt`. The change is benign in shape —
 **append-only**, so no historical count can drop, and the seven additions are
 Unicode 17 emoji that will start appearing in real messages regardless. But it is
 a data change and should land knowingly, in its own batch, not smuggled in as a
-"minor helper". Harness: `scratchpad/emoji_parity.py`.
+"minor helper". Harness: `scripts/emoji_parity.py`.
 
 ## The two that did pass
 
@@ -56,13 +56,26 @@ versions and diffed. 31 wire lines, identical, including the derived
 those are wall-clock, so the harness canonicalizes the **value** but keeps the
 line, so an added or removed series would still surface in the diff.
 
+The canonicalizing regex was originally unanchored and silently rewrote `# TYPE`
+and `# HELP` metadata too (`# TYPE tg_messages_created gauge` → `<WALLCLOCK>`),
+which would have hidden a metric-type change. It is now anchored to a full metric
+name and comment lines are skipped outright. The result above was **re-measured
+with the corrected harness** against a dedicated 0.23.1 probe venv.
+
 **python-dotenv** — killer question: *does it still parse the real config?* It is
 not imported by `tgstats/` directly; it is reached through `pydantic-settings`,
 which is what actually loads settings, so it sits on the config path. Parsed the
 real `.env`, `.env.example`, and an 11-case syntax file (quoting, `${}`
 interpolation, `export` keyword, multiline, inline comments, empty and
-bare keys) on both versions. Identical. Secrets were never printed or stored —
-the harness compares key names and SHA256 digests of values only.
+bare keys) on both versions. Identical.
+
+The harness emits **only a key count and one aggregate digest per file** — no key
+names, no per-value material. An earlier draft emitted per-key truncated SHA256
+and claimed "secrets never stored"; review demonstrated that was false in
+substance — 15 of 41 real values were recovered from a 25-word dictionary, and
+the plaintext key names were themselves a secret inventory (`ADMIN_API_TOKEN`,
+`BOT_TOKEN`). It also refuses to write its output anywhere inside the repo,
+because there is no `.dockerignore` and `Dockerfile:33` is `COPY . .`.
 
 ## Suite gate
 
@@ -76,8 +89,15 @@ NEW failures introduced: none
 ```
 
 `test_caching.py::TestCaching::test_cached_decorator_different_args` is known
-flaky — it flips between identical runs — and is inside both unions. This gate is
-weaker than green and should be stated on the PR.
+flaky — it flips between identical runs — and is inside both unions.
+
+**This gate is close to zero signal for these two packages, not merely "weaker
+than green".** `grep -rE "prometheus|dotenv|generate_latest" tests/` returns no
+hits. Both packages are exercised only transitively at import (config →
+pydantic-settings → `dotenv_values`; `metrics.py` builds a registry), and
+`generate_latest` — the actual wire surface — is never called by a test. "43 =
+43" could not have caught an exposition regression. **The harnesses did all of
+the verification work here**; the suite gate only shows nothing else broke.
 
 ## Harnesses (re-run these on the next bump of each package)
 
