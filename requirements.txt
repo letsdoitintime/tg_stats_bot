@@ -29,7 +29,10 @@ starlette==0.47.*
 uvicorn==0.35.*
 structlog==25.4.*
 emoji==2.14.*
-python-dotenv==1.1.*
+# 1.2.x verified to parse the real .env, .env.example and 11 syntax edge cases
+# (quoting, interpolation, export kw, multiline, inline comments) byte-identically
+# to 1.1.x. Reached via pydantic-settings, which is what actually loads config.
+python-dotenv==1.2.*
 
 # Step 2 additions
 python-dateutil==2.9.*
@@ -41,7 +44,10 @@ jinja2==3.1.*
 pyyaml==6.0.*
 
 # Performance and monitoring
-prometheus-client==0.23.*
+# 0.25.x verified to emit a byte-identical /metrics exposition for Counter,
+# Gauge and Histogram (all three types tgstats/utils/metrics.py uses), including
+# the _total/_bucket/_sum/_count series — scrapers see no change.
+prometheus-client==0.25.*
 
 # Distributed tracing (genuinely optional — NOT installed in the running venv).
 # tgstats/utils/tracing.py guards these imports and sets TRACING_AVAILABLE=False
