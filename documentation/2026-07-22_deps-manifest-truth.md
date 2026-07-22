@@ -37,21 +37,31 @@ rebuild would **downgrade nine production libraries**:
 
 Also wrong, same file:
 
-- **`starlette` was unpinned.** `fastapi` declares it with no upper bound, so the
-  framework major was never reproducible. Verified: `fastapi==0.139.2` pulls
-  `starlette==1.3.1` — a major jump from the 0.47.3 in production.
+- **`starlette` was unpinned.** Corrected after review — an earlier draft said
+  "fastapi declares it with no upper bound", which is **false for the pinned
+  version**: `fastapi 0.116.1` declares `starlette<0.48.0,>=0.40.0`. The pin is
+  therefore redundant today. It earns its place forward: `fastapi 0.139.2`
+  **dropped** that ceiling to a bare `starlette>=0.46.0` and resolves to
+  `starlette 1.3.1`, a major. The pin does nothing until someone bumps fastapi,
+  which is precisely when it is needed.
 - **The six `opentelemetry-*` pins were unconditional but not installed.**
   `tgstats/utils/tracing.py:8-20` wraps the imports in `try/except ImportError`
-  and sets `TRACING_AVAILABLE=False`, which is the current production state. A
-  rebuild would have installed them and flipped tracing **on** — a silent
-  runtime behaviour change, not just a version change.
+  and sets `TRACING_AVAILABLE=False`. Also corrected after review: an earlier
+  draft claimed a rebuild would "flip tracing **on**". It would not — **nothing
+  in the repo imports that module**, so `TracingManager` is never constructed.
+  Installing them adds six unused packages. Commenting them out is still right
+  (they were pinned while absent, which is the drift being cleaned up), but the
+  behaviour-change reasoning was wrong.
 - **`tzdata` pinned `2024.2`, running `2025.2`** — a rebuild would have reverted
   a year of IANA timezone rules under a bot whose whole domain is per-timezone
   activity heatmaps.
 
-`requirements-dev.txt` was fiction end to end: every pin stale, `pytest-asyncio`
-pinned `0.24.*` against `1.1.0` installed (a major), and **`aiosqlite` listed but
-never installed** — which is why 57 tests could not even be collected.
+`requirements-dev.txt` was stale throughout: `pytest-asyncio` pinned `0.24.*`
+against `1.1.0` installed (a major), `isort` pinned `5.13.*` against `7.0.0`
+(two majors). `aiosqlite` was **listed but missing from the venv**, which is why
+57 tests failed at collection locally. Note the scope of that: it was a local
+venv problem, not a manifest problem — CI installs fresh from this file, so CI
+was never affected.
 
 ## What changed
 
@@ -59,9 +69,14 @@ never installed** — which is why 57 tests could not even be collected.
 - `starlette==0.47.*` pinned explicitly, with a note to bump it *with* fastapi.
 - The `opentelemetry-*` block commented out to match reality, with instructions
   to re-enable deliberately (all six together).
-- Dev pins reconciled; `aiosqlite` installed; thirteen listed-but-never-installed
-  and unused dev packages dropped (nothing in `tests/` imports them — the
+- Dev pins reconciled and `aiosqlite` installed into the venv. Eleven unused dev
+  packages dropped — none installed, none imported anywhere in the repo (the
   `factory` references are the app's own `ServiceFactory`/`RepositoryFactory`).
+  Corrected after review: an earlier draft said *thirteen*, including `isort`
+  and `flake8`, and described all of them as "never installed". Both of those
+  **are** installed (7.0.0 and 7.3.0), so they are pinned truthfully here
+  instead of dropped. Verified the drops are CI-safe: `ci.yml:23` installs the
+  lint tools directly and `ci.yml:87` runs pytest without `-n`.
 
 ## The second manifest — `pyproject.toml`
 
@@ -117,8 +132,16 @@ $ pip install --dry-run -e ".[dev]"
 The commented-out `opentelemetry-*` lines are correctly ignored by setuptools,
 so the tracing-stays-off property holds on this path too.
 
-A no-op dry-run is the whole point: the manifest now reproduces the running venv
-byte-for-byte, so the rebuild path and the running services agree.
+A no-op dry-run is the whole point: the manifest no longer downgrades anything,
+so the rebuild path and the running services agree.
+
+> ⚠️ **This stack must land as a unit.** That no-op was measured against the venv
+> *before* batch 1 bumped prometheus-client and python-dotenv. Batch 1 advanced
+> the venv, so the same command now reports
+> `Would install prometheus_client-0.23.1 python-dotenv-1.1.1` — **merging and
+> deploying this batch alone would downgrade those two packages.** Merge both,
+> or neither. (Found by review; the split is for review attention, not for
+> independent deployability.)
 
 Test suite: `19 failed + 57 collection errors` → `41–43 failed, 177–179 passed`.
 The improvement is entirely from installing `aiosqlite`; no production library
@@ -134,9 +157,12 @@ here — the suite is red before any change**, and it is also nondeterministic:
 - Failures are order-dependent: `test_repositories.py::TestChatRepository::test_get_by_chat_id`
   passes alone and fails in the full run — the in-memory SQLite state leaks
   between tests.
-- Verified **not** caused by dependency drift: pinning `pytest-asyncio` back to
-  the manifest's `0.24.*` gives 41 failures vs 1.1.0's 42–43. Same suite, same
-  problem. These are pre-existing app/test bugs.
+- Not *substantially* caused by dependency drift: pinning `pytest-asyncio` back
+  to the manifest's `0.24.*` gives 41 failures vs 1.1.0's 42–43. The bulk of the
+  failures is identical either way and is pre-existing app/test bugs. To be
+  precise about the residue, though — that 1–2 test delta **is** a dependency
+  effect (it moves within `test_caching.py`), so "not caused by drift" is right
+  about the 40-odd, not about every last one.
 - Example of a real one, not a dep issue: `tgstats/web/date_utils.py:50,60`
   computes `end - timedelta(days=30)` then `days = (end - start).days + 1`,
   yielding **31** where `test_step2.py:21` asserts 30.

@@ -2,29 +2,34 @@
 # Reconciled against the running venv: 2026-07-22
 #
 # Pins now match what the venv actually has, so a fresh dev env reproduces the
-# same test result. Previously every pin here was stale (pytest-asyncio was
-# pinned 0.24.* while the venv ran 1.1.0 — a major), and aiosqlite was listed
-# but never installed, which made 57 tests fail at COLLECTION.
+# same test result. Previously every pin here was stale — pytest-asyncio was
+# pinned 0.24.* while the venv ran 1.1.0 (a major), and isort was pinned 5.13.*
+# against 7.0.0 installed (two majors).
 
 # Testing
 pytest==8.4.*
 pytest-asyncio==1.1.*
 pytest-cov==7.0.*
 # Required by tests/conftest.py — TEST_DATABASE_URL is "sqlite+aiosqlite:///:memory:".
-# Without it the whole async test suite fails to collect.
+# Listed here before this batch but missing from the venv, so the async suite
+# failed at COLLECTION locally (57 errors). CI installs fresh and was unaffected.
 aiosqlite==0.20.*
 
-# Code quality
+# Code quality. All four are installed; ci.yml:23 also installs them directly
+# (unpinned), and .pre-commit-config.yaml pins its own copies again — three
+# places, three answers. Worth consolidating; out of scope for this batch.
 ruff==0.12.*
 black==25.1.*
+isort==7.0.*
+flake8==7.3.*
 mypy==1.19.*
-# pre-commit is NOT installed in the venv and is not needed by the bot or the
-# tests; it installs its own pinned tool envs from .pre-commit-config.yaml, so
-# isort/flake8/black/mypy do not need duplicating here for the hooks to run.
+# pre-commit itself is NOT installed and is not needed by the bot or the tests.
 # Opt in per .pre-commit-config.yaml:  pip install pre-commit && pre-commit install
 
-# Dropped 2026-07-22 — listed but never installed, and nothing in tests/ imports
-# them: pytest-mock, pytest-xdist, isort, flake8, factory-boy, faker, responses,
-# freezegun, ipython, ipdb, types-python-dateutil, types-redis, types-PyYAML.
+# Dropped 2026-07-22 — not installed in the venv and not imported anywhere in
+# the repo: pytest-mock, pytest-xdist, factory-boy, faker, responses, freezegun,
+# ipython, ipdb, types-python-dateutil, types-redis, types-PyYAML.
 # (The `factory` references in tests/ are the app's own ServiceFactory /
 # RepositoryFactory, not factory-boy.) httpx is a production pin already.
+# Verified safe for CI: the test job needs only pytest/pytest-asyncio/pytest-cov/
+# aiosqlite, and ci.yml:87 runs pytest without -n, so pytest-xdist is unused.
