@@ -8,9 +8,17 @@ everything that does.
 
 ## What was wrong
 
-`requirements.txt` is the deploy contract — `Dockerfile:16` and
-`install_requirements.sh:29` both `pip install -r requirements.txt`. It was last
-touched 2025-12-16 and the venv has drifted from it since.
+`requirements.txt` is the container deploy contract (`Dockerfile:16`). It was
+last touched 2025-12-16 and the venv has drifted from it since.
+
+> **Correction (found by the Codex bot review on PR #20).** An earlier draft of
+> this doc claimed `install_requirements.sh` also installs from `requirements.txt`.
+> It does not. `install_requirements.sh:23` branches on `pyproject.toml` *first*,
+> and that file exists — so the script always runs `pip install -e .` /
+> `pip install -e ".[dev]"` and never reads `requirements.txt` at all. The
+> README's documented dev setup (`README.md:314`) takes the same path. See
+> "The second manifest" below; the reconciliation was only half a fix until that
+> was addressed.
 
 `pip install --dry-run -r requirements.txt` against the running venv proved a
 rebuild would **downgrade nine production libraries**:
@@ -55,6 +63,36 @@ never installed** — which is why 57 tests could not even be collected.
   and unused dev packages dropped (nothing in `tests/` imports them — the
   `factory` references are the app's own `ServiceFactory`/`RepositoryFactory`).
 
+## The second manifest — `pyproject.toml`
+
+`pyproject.toml` duplicated the dependency list as open floors
+(`fastapi>=0.100`, `structlog>=23.0`, `python-telegram-bot>=21.0`, …) **and was
+missing nine runtime packages outright**. Because `install_requirements.sh`
+prefers it, that was the path most people actually took. Measured with
+`pip install --dry-run -e .` against the old file:
+
+- **Installed every deferred major at once** — `fastapi 0.139.2`,
+  **`starlette 1.3.1`**, `structlog 26.1.0`, `pydantic 2.13.4`, `psycopg 3.3.4`,
+  `alembic 1.18.5`, `uvicorn 0.51.0`, `emoji 2.15.0`.
+- **Omitted `redis`, `celery`, `prometheus-client`, `pyyaml`, `asyncpg`,
+  `tzdata`, `jinja2`, `python-dateutil`, `httpx`.** `redis` and `celery` are
+  imported in three modules each and `pyyaml` in one, so that environment could
+  not start the bot.
+- `[dev]` extras lacked `aiosqlite`, so a fresh dev env still failed test
+  collection — the reconciled `requirements-dev.txt` never applied on this path.
+
+Fixed by deleting the duplicate list rather than syncing it. `pyproject.toml`
+now reads the pinned files, so there is exactly one source of truth and the two
+install paths cannot diverge again:
+
+```toml
+dynamic = ["dependencies", "optional-dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+optional-dependencies.dev = { file = ["requirements-dev.txt"] }
+```
+
 ## Proof
 
 ```
@@ -63,6 +101,21 @@ $ venv/bin/pip install --dry-run -r requirements.txt -r requirements-dev.txt
 $ venv/bin/pip check
 No broken requirements found.
 ```
+
+And the pyproject path, which is the one the setup script and README use:
+
+```
+$ pip install --dry-run -e .        # was: fastapi 0.139.2 / starlette 1.3.1 / structlog 26.1.0,
+                                    #      no redis, no celery, no prometheus-client
+  fastapi-0.116.2  starlette-0.47.3  structlog-25.4.0  emoji-2.14.1
+  redis-6.4.0  celery-5.5.3  prometheus-client  PyYAML-6.0.3  asyncpg-0.30.0  tzdata-2025.2
+
+$ pip install --dry-run -e ".[dev]"
+  aiosqlite-0.20.0  pytest-8.4.2  pytest-asyncio-1.1.1  pytest-cov-7.0.0  ruff  black  mypy
+```
+
+The commented-out `opentelemetry-*` lines are correctly ignored by setuptools,
+so the tracing-stays-off property holds on this path too.
 
 A no-op dry-run is the whole point: the manifest now reproduces the running venv
 byte-for-byte, so the rebuild path and the running services agree.
