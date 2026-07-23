@@ -1,5 +1,6 @@
 """Analytics API endpoints."""
 
+from datetime import datetime, timezone
 from typing import List, Optional
 
 import structlog
@@ -317,6 +318,12 @@ async def get_chat_users(
 
     total = session.execute(text(count_query), params).fetchone().total
 
+    # Field names here are the SCHEMA's, not the SQL column aliases. Five of
+    # them differed (activity_pct/active_days/joined_at/left_at/has_left/
+    # last_message_at vs activity_percentage/active_days_ratio/days_since_joined/
+    # left/last_message), so every UserStats raised ValidationError and this
+    # endpoint returned 500 for any chat that had users.
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     users = [
         UserStats(
             user_id=row.user_id,
@@ -324,12 +331,11 @@ async def get_chat_users(
             first_name=row.first_name,
             last_name=row.last_name,
             msg_count=row.msg_count,
-            active_days=row.active_days,
-            activity_pct=float(row.activity_pct),
-            joined_at=row.joined_at.isoformat() if row.joined_at else None,
-            left_at=row.left_at.isoformat() if row.left_at else None,
-            has_left=row.has_left,
-            last_message_at=row.last_message_at.isoformat() if row.last_message_at else None,
+            activity_percentage=float(row.activity_pct),
+            active_days_ratio=f"{row.active_days}/{days}",
+            last_message=row.last_message_at.isoformat() if row.last_message_at else None,
+            days_since_joined=((now_utc - row.joined_at).days if row.joined_at else None),
+            left=row.has_left,
         )
         for row in result
     ]
@@ -368,12 +374,19 @@ async def preview_retention(
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
 
+    # retention_preview() already returns exactly the schema's field names.
+    # This used to rename four of them to keys the dict never had
+    # (messages_with_text_to_clear / messages_to_delete / oldest_message_date /
+    # newest_message_date), so the endpoint raised KeyError before pydantic even
+    # ran, and returned 500 for every chat that had settings.
     return RetentionPreviewResponse(
         chat_id=result["chat_id"],
         text_retention_days=result["text_retention_days"],
         metadata_retention_days=result["metadata_retention_days"],
-        messages_with_text_to_clear=result["messages_with_text_to_clear"],
-        messages_to_delete=result["messages_to_delete"],
-        oldest_message_date=result["oldest_message_date"],
-        newest_message_date=result["newest_message_date"],
+        store_text=result["store_text"],
+        text_removal_count=result["text_removal_count"],
+        metadata_removal_count=result["metadata_removal_count"],
+        reaction_removal_count=result["reaction_removal_count"],
+        text_cutoff_date=result["text_cutoff_date"],
+        metadata_cutoff_date=result["metadata_cutoff_date"],
     )
