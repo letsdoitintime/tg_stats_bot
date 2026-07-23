@@ -67,7 +67,11 @@ async def upsert_chat(session: AsyncSession, tg_chat: TelegramChat) -> Chat:
     await session.flush()
 
     # Return the chat object
-    result = await session.execute(select(Chat).where(Chat.chat_id == tg_chat.id))
+    # populate_existing: the upsert above rewrote the row as raw DML, which the
+    # ORM does not observe, so a plain select hands back the stale in-session copy
+    result = await session.execute(
+        select(Chat).where(Chat.chat_id == tg_chat.id).execution_options(populate_existing=True)
+    )
     return result.scalar_one()
 
 
@@ -119,7 +123,10 @@ async def upsert_user(session: AsyncSession, tg_user: TelegramUser) -> User:
     await session.flush()
 
     # Return the user object
-    result = await session.execute(select(User).where(User.user_id == tg_user.id))
+    # populate_existing: see upsert_chat — same stale-identity-map hazard
+    result = await session.execute(
+        select(User).where(User.user_id == tg_user.id).execution_options(populate_existing=True)
+    )
     return result.scalar_one()
 
 

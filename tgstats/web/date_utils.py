@@ -32,7 +32,12 @@ def parse_period(
     """
     if to_date:
         try:
-            end_local = datetime.strptime(to_date, "%Y-%m-%d").replace(tzinfo=tz)
+            # End of the requested day, not its midnight. Parsing to 00:00:00
+            # made the range exclude the whole of to_date, so "1 Jan to 7 Jan"
+            # returned data for 1-6 Jan only.
+            end_local = datetime.strptime(to_date, "%Y-%m-%d").replace(
+                hour=23, minute=59, second=59, microsecond=999999, tzinfo=tz
+            )
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid to_date format. Use YYYY-MM-DD")
     else:
@@ -46,8 +51,10 @@ def parse_period(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid from_date format. Use YYYY-MM-DD")
     else:
-        # Default to 30 days before end_local
-        start_local = end_local - timedelta(days=30)
+        # 30 days INCLUSIVE of today, to match the `days` count returned below
+        # (which counts both endpoints). Subtracting a full 30 spanned 31
+        # calendar days while still reporting 30.
+        start_local = end_local - timedelta(days=29)
         start_local = start_local.replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Convert to UTC
@@ -83,7 +90,11 @@ def rotate_heatmap_rows(rows: List[Tuple], tz: ZoneInfo) -> List[List[int]]:
         utc_dt = hour_bucket.replace(tzinfo=ZoneInfo("UTC"))
         local_dt = utc_dt.astimezone(tz)
 
-        local_weekday = local_dt.isoweekday() % 7  # Convert to 0=Monday, 6=Sunday
+        # 0=Monday .. 6=Sunday, matching the "weekdays" list this matrix is
+        # returned alongside (routers/analytics.py) and the Mon-Sun axis the
+        # template renders. isoweekday() % 7 gave Sunday=0 and Monday=1, so every
+        # row was shifted by one day — Sunday's traffic displayed under "Monday".
+        local_weekday = local_dt.weekday()
         local_hour = local_dt.hour
 
         matrix[local_weekday][local_hour] += msg_cnt

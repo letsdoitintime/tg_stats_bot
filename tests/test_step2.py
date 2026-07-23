@@ -7,7 +7,12 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from tgstats.web.date_utils import parse_period, rotate_heatmap_rows
-from tgstats.web.query_utils import get_group_tz
+from tgstats.web.query_utils import (
+    build_heatmap_query,
+    build_timeseries_query,
+    get_aggregate_table_name,
+    get_group_tz,
+)
 
 
 class TestTimezoneHandling:
@@ -28,8 +33,10 @@ class TestTimezoneHandling:
         start_utc, end_utc, days = parse_period(from_date="2025-01-01", to_date="2025-01-07", tz=tz)
 
         assert days == 7
-        # Sofia is ahead of UTC, so UTC times should be earlier
-        assert start_utc.hour < 12  # Should be earlier in the day
+        # Sofia is ahead of UTC, so 2025-01-01 00:00 Sofia is 2024-12-31 22:00 UTC.
+        # Assert the instant, not the hour number — the old `start_utc.hour < 12`
+        # compared 22 < 12 and could only ever have passed for a timezone behind UTC.
+        assert start_utc == datetime(2024, 12, 31, 22, 0)
 
     def test_parse_period_sofia_timezone(self):
         """Test timezone handling for Europe/Sofia specifically."""
@@ -160,19 +167,26 @@ class TestAggregateQueries:
     """Test aggregate query logic."""
 
     def test_timescale_vs_postgres_branching(self):
-        """Test that we properly branch between TimescaleDB and PostgreSQL."""
-        # Mock the check function
-        with patch("tgstats.web.app.check_timescaledb_available") as mock_check:
-            # Test TimescaleDB path
-            mock_check.return_value = True
-            # Would test that we use 'chat_daily' table
+        """TimescaleDB uses continuous aggregates; plain PG uses the _mv views.
 
-            # Test PostgreSQL path
-            mock_check.return_value = False
-            # Would test that we use 'chat_daily_mv' table
+        Previously this patched `tgstats.web.app.check_timescaledb_available` —
+        a name that does not exist there (it lives in web/query_utils.py) — and
+        then asserted nothing at all. It failed on the patch target, not on the
+        behaviour, and would have passed with the branching completely broken.
+        """
+        assert get_aggregate_table_name(True, "chat_daily") == "chat_daily"
+        assert get_aggregate_table_name(False, "chat_daily") == "chat_daily_mv"
 
-            # This is more of a integration test that would need a real database
-            pass
+        # The branch has to reach the SQL, not just the helper.
+        for is_timescale, expected in ((True, "chat_daily"), (False, "chat_daily_mv")):
+            sql = str(build_timeseries_query(is_timescale, "messages"))
+            assert f"FROM {expected}" in sql
+
+        for is_timescale, expected in (
+            (True, "chat_hourly_heatmap"),
+            (False, "chat_hourly_heatmap_mv"),
+        ):
+            assert f"FROM {expected}" in str(build_heatmap_query(is_timescale))
 
 
 @pytest.fixture

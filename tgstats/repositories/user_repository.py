@@ -18,9 +18,18 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, session: AsyncSession):
         super().__init__(User, session)
 
-    async def get_by_user_id(self, user_id: int) -> Optional[User]:
-        """Get user by Telegram user ID."""
-        result = await self.session.execute(select(User).where(User.user_id == user_id))
+    async def get_by_user_id(self, user_id: int, *, refresh: bool = False) -> Optional[User]:
+        """Get user by Telegram user ID.
+
+        refresh=True re-populates an instance already in the session's identity
+        map — required after an upsert, whose ON CONFLICT DO UPDATE rewrites the
+        row as raw DML the ORM does not observe. Without it a user who changed
+        their username kept the old one for the rest of the session.
+        """
+        stmt = select(User).where(User.user_id == user_id)
+        if refresh:
+            stmt = stmt.execution_options(populate_existing=True)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def upsert_from_telegram(self, tg_user: TelegramUser) -> User:
@@ -69,4 +78,5 @@ class UserRepository(BaseRepository[User]):
         await self.session.execute(stmt)
         await self.session.flush()
 
-        return await self.get_by_user_id(tg_user.id)
+        # refresh: the row above was rewritten by raw ON CONFLICT DO UPDATE
+        return await self.get_by_user_id(tg_user.id, refresh=True)

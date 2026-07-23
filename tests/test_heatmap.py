@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 import pytest
+from conftest import create_aggregate_views  # tests/ is not a package
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -24,6 +25,7 @@ async def session():
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await create_aggregate_views(conn)
 
     async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
