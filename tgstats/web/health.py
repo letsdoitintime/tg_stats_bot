@@ -49,7 +49,20 @@ async def check_celery() -> dict:
 
 
 async def check_telegram_api() -> dict:
-    """Check Telegram Bot API connectivity."""
+    """Check Telegram Bot API connectivity.
+
+    In polling mode the bot runs as a SEPARATE process (`python -m
+    tgstats.bot_main`), so the web process never has a bot application
+    registered — set_bot_application() runs in the other process's memory.
+    Treating that as a failure made /health/ready return 503 permanently, which
+    is what k8s/ would gate traffic on. Only webhook mode, where the bot really
+    does live in this process, can meaningfully answer this.
+    """
+    from ..core.config import settings
+
+    if settings.mode != "webhook":
+        return {"available": True, "skipped": f"bot runs out-of-process in {settings.mode} mode"}
+
     try:
         from .routers.webhook import get_bot_application  # defined here, not in web.app
 

@@ -259,3 +259,32 @@ class TestRealDataShapes:
         assert "error" not in result, result.get("error")
         assert result["text_retention_days"] == 90
         assert result["store_text"] is True
+
+
+class TestReadiness:
+    """/health/ready must not be permanently 503 in polling mode."""
+
+    @pytest.mark.asyncio
+    async def test_telegram_check_skipped_in_polling_mode(self):
+        from tgstats.core.config import settings
+        from tgstats.web import health
+
+        with patch.object(settings, "mode", "polling"):
+            out = await health.check_telegram_api()
+
+        # The bot is a separate process in polling mode, so this process can
+        # never see it; reporting that as unavailable gated readiness forever.
+        assert out["available"] is True
+        assert "skipped" in out
+
+    @pytest.mark.asyncio
+    async def test_telegram_check_runs_in_webhook_mode(self):
+        from tgstats.core.config import settings
+        from tgstats.web import health
+
+        with patch.object(settings, "mode", "webhook"):
+            out = await health.check_telegram_api()
+
+        # No bot application is registered in the test process, so webhook mode
+        # must still report an honest failure rather than skipping.
+        assert out["available"] is False
