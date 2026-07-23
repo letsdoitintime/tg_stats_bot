@@ -57,3 +57,4 @@ dmypy.json
 .ruff_cache/
 
 tgstats/web/app_old.py
+.claude/worktrees/

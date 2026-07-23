@@ -50,7 +50,16 @@ python-dateutil==2.9.*
 tzdata==2025.2
 httpx==0.28.*
 celery==5.5.*
-redis==6.4.*
+# 8.0.x verified on scripts/redis_parity.py: cache round-trip (dict/list/nested/
+# unicode+emoji/int/float/bool/None) byte-identical, TTL and scan_iter/delete
+# unchanged, and the ConnectionError/TimeoutError/ResponseError/RedisError
+# __mro__ unchanged -- cache.py's except blocks still catch the same classes.
+# from_url() adds new default connection_kwargs (maint_notifications_*) that
+# host/port/db parsing ignores, and setex() gained a DeprecationWarning
+# (superseded by SET...EX) that does not change its return value. Also
+# manually verified: the currently-pinned celery==5.5.* (kombu's redis
+# transport) still sends/receives through a live Redis with this client.
+redis==8.0.*
 jinja2==3.1.*
 pyyaml==6.0.*
 
