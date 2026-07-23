@@ -13,7 +13,15 @@
 # Core dependencies
 python-telegram-bot[all]==22.5.*
 sqlalchemy==2.0.*  # 2.0.51 verified: type round-trip unchanged (scripts/dbdriver_parity.py)
-alembic==1.16.*
+# migrations run on deploy (supervisor's tgstats-migrations runs `alembic
+# upgrade head`), so the question was whether 1.18 resolves the SAME revision
+# graph and renders BYTE-IDENTICAL offline SQL for all 12 migrations here --
+# not just that it imports. scripts/alembic_parity.py proved it: same single
+# head, same base->head order, same DDL text, via alembic's own `--sql` mode
+# (no DB touched). One revision (006) can't render offline in ANY version --
+# it inspects a live connection with none available -- and both versions
+# fail there identically, which is exactly the parity this harness confirms.
+alembic==1.18.*
 # 3.3.x verified to round-trip every type the schema uses — Decimal, date,
 # naive/aware timestamptz, jsonb, bool, unicode — in BOTH directions, via
 # scripts/dbdriver_parity.py. Bump asyncpg with it; they are separate codecs.
