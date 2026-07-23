@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ...celery_tasks import retention_preview
-from ...db import get_session
+from ...db import get_sync_db
 from ...schemas.api import (
     PeriodSummary,
     RetentionPreviewResponse,
@@ -34,11 +34,11 @@ router = APIRouter(prefix="/api/chats", tags=["analytics"])
 
 
 @router.get("/{chat_id}/summary", response_model=PeriodSummary)
-async def get_chat_summary(
+def get_chat_summary(
     chat_id: int,
     from_date: Optional[str] = Query(None, alias="from"),
     to_date: Optional[str] = Query(None, alias="to"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_sync_db),
     _token: None = Depends(verify_admin_token),
 ):
     """
@@ -113,12 +113,12 @@ async def get_chat_summary(
 
 
 @router.get("/{chat_id}/timeseries", response_model=List[TimeseriesPoint])
-async def get_chat_timeseries(
+def get_chat_timeseries(
     chat_id: int,
     metric: str = Query(..., regex="^(messages|dau)$"),
     from_date: Optional[str] = Query(None, alias="from"),
     to_date: Optional[str] = Query(None, alias="to"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_sync_db),
     _token: None = Depends(verify_admin_token),
 ):
     """
@@ -154,11 +154,11 @@ async def get_chat_timeseries(
 
 
 @router.get("/{chat_id}/heatmap")
-async def get_chat_heatmap(
+def get_chat_heatmap(
     chat_id: int,
     from_date: Optional[str] = Query(None, alias="from"),
     to_date: Optional[str] = Query(None, alias="to"),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_sync_db),
     _token: None = Depends(verify_admin_token),
 ):
     """
@@ -209,7 +209,7 @@ def _days_since(joined, now_aware):
 
 
 @router.get("/{chat_id}/users", response_model=UserStatsResponse)
-async def get_chat_users(
+def get_chat_users(
     chat_id: int,
     from_date: Optional[str] = Query(None, alias="from"),
     to_date: Optional[str] = Query(None, alias="to"),
@@ -218,7 +218,7 @@ async def get_chat_users(
     left: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100),
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_sync_db),
     _token: None = Depends(verify_admin_token),
 ):
     """
@@ -369,9 +369,9 @@ async def get_chat_users(
 
 
 @router.get("/{chat_id}/retention/preview", response_model=RetentionPreviewResponse)
-async def preview_retention(
+def preview_retention(
     chat_id: int,
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_sync_db),
     _token: None = Depends(verify_admin_token),
 ):
     """

@@ -55,7 +55,7 @@ class TestChatsRouter:
         ]
         session = _session(fetchall=rows)
         with patch.object(chats, "check_timescaledb_available", return_value=False):
-            out = await chats.get_chats(session=session, _token=None)
+            out = chats.get_chats(session=session, _token=None)
 
         assert [c.chat_id for c in out] == [-100, -200]
         # Falls back to a synthetic title when the chat has none
@@ -72,9 +72,7 @@ class TestChatsRouter:
             locale="en",
             capture_reactions=False,
         )
-        out = await chats.get_chat_settings(
-            chat_id=1, session=_session(first=settings), _token=None
-        )
+        out = chats.get_chat_settings(chat_id=1, session=_session(first=settings), _token=None)
         assert out.chat_id == 1
         assert out.timezone == "UTC"
 
@@ -83,7 +81,7 @@ class TestChatsRouter:
         from fastapi import HTTPException
 
         with pytest.raises(HTTPException) as exc:
-            await chats.get_chat_settings(chat_id=1, session=_session(first=None), _token=None)
+            chats.get_chat_settings(chat_id=1, session=_session(first=None), _token=None)
         assert exc.value.status_code == 404
 
 
@@ -100,7 +98,7 @@ class TestAnalyticsRouter:
         session = _session(fetchone=row)
         p1, p2 = _patched()
         with p1, p2:
-            out = await analytics.get_chat_summary(
+            out = analytics.get_chat_summary(
                 chat_id=1,
                 from_date="2025-01-01",
                 to_date="2025-01-07",
@@ -118,7 +116,7 @@ class TestAnalyticsRouter:
         session = _session(fetchall=rows)
         p1, p2 = _patched()
         with p1, p2:
-            out = await analytics.get_chat_timeseries(
+            out = analytics.get_chat_timeseries(
                 chat_id=1,
                 metric="messages",
                 from_date="2025-01-01",
@@ -135,7 +133,7 @@ class TestAnalyticsRouter:
         session = _session(fetchall=rows)
         p1, p2 = _patched()
         with p1, p2:
-            out = await analytics.get_chat_heatmap(
+            out = analytics.get_chat_heatmap(
                 chat_id=1, from_date=None, to_date=None, session=session, _token=None
             )
         assert out["weekdays"][0] == "Monday"
@@ -164,7 +162,7 @@ class TestAnalyticsRouter:
         session = _session(fetchall=rows, fetchone=SimpleNamespace(total=1))
         p1, p2 = _patched()
         with p1, p2:
-            out = await analytics.get_chat_users(
+            out = analytics.get_chat_users(
                 chat_id=1,
                 from_date="2025-01-01",
                 to_date="2025-01-07",
@@ -203,7 +201,7 @@ class TestAnalyticsRouter:
             "preview_generated_at": "2025-01-01T00:00:00+00:00",
         }
         with patch.object(analytics, "retention_preview", return_value=preview):
-            out = await analytics.preview_retention(chat_id=1, session=_session(), _token=None)
+            out = analytics.preview_retention(chat_id=1, session=_session(), _token=None)
         assert out.chat_id == 1
         assert out.text_removal_count == 4
         assert out.metadata_removal_count == 2

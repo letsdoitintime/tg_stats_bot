@@ -51,7 +51,7 @@ async def check_celery() -> dict:
 async def check_telegram_api() -> dict:
     """Check Telegram Bot API connectivity."""
     try:
-        from ..web.app import get_bot_application
+        from .routers.webhook import get_bot_application  # defined here, not in web.app
 
         app = get_bot_application()
 

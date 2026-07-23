@@ -294,7 +294,7 @@ class TestAggregateDateBounds:
             patch.object(analytics, "get_group_tz", return_value=ZoneInfo("America/Los_Angeles")),
             patch.object(analytics, "check_timescaledb_available", return_value=False),
         ):
-            await analytics.get_chat_timeseries(
+            analytics.get_chat_timeseries(
                 chat_id=1,
                 metric="messages",
                 from_date="2025-01-01",
@@ -320,7 +320,7 @@ class TestAggregateDateBounds:
             patch.object(analytics, "get_group_tz", return_value=ZoneInfo("America/Los_Angeles")),
             patch.object(analytics, "check_timescaledb_available", return_value=False),
         ):
-            await analytics.get_chat_users(
+            analytics.get_chat_users(
                 chat_id=1,
                 from_date="2025-01-01",
                 to_date="2025-01-07",

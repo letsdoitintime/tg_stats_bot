@@ -113,6 +113,21 @@ async def get_db_session() -> AsyncSession:
             await session.close()
 
 
+def get_sync_db() -> Session:
+    """FastAPI dependency yielding a SYNCHRONOUS session.
+
+    The /api routers are written against the sync Session API
+    (session.execute(...).fetchall(), session.query(...)). Depending on
+    get_session() handed them an AsyncSession instead, so every call returned a
+    coroutine and raised "'coroutine' object has no attribute 'fetchall'" —
+    the whole /api surface answered 500. Endpoints using this must be `def`,
+    not `async def`, so FastAPI runs them in a threadpool rather than blocking
+    the event loop the bot shares.
+    """
+    with sync_session() as session:
+        yield session
+
+
 def get_sync_session() -> Session:
     """Get a synchronous database session context manager."""
     return sync_session()
