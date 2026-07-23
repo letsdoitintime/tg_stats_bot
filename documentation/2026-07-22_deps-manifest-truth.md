@@ -143,6 +143,25 @@ so the rebuild path and the running services agree.
 > or neither. (Found by review; the split is for review attention, not for
 > independent deployability.)
 
+### Caveat — consistent, but still not *reproducible*
+
+That no-op holds for `pip install -r` (pip's default is only-if-needed). It does
+**not** make the build reproducible, because the `==X.Y.*` convention this file
+has always used still lets patch versions float. Measured, not assumed —
+`pip install -r requirements.txt --upgrade --upgrade-strategy eager` against the
+reconciled file still moved five tier-B libraries:
+
+```
+alembic 1.16.4->1.16.5   fastapi 0.116.1->0.116.2   psycopg 3.2.9->3.2.13
+pydantic 2.11.7->2.11.10 sqlalchemy 2.0.43->2.0.51
+```
+
+So a fresh machine still gets whatever patch is newest that day. This batch buys
+*consistency* (no silent downgrade, no surprise tracing, no unpinned framework
+major); it does not buy *reproducibility*. The real fix is exact `==X.Y.Z` pins
+or a lockfile (`uv`/`pip-tools`) with this file as the input — worth doing, but a
+convention change for a separate batch.
+
 Test suite: `19 failed + 57 collection errors` → `41–43 failed, 177–179 passed`.
 The improvement is entirely from installing `aiosqlite`; no production library
 moved. The remaining failures are pre-existing and unrelated (see below).
