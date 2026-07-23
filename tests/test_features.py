@@ -2,7 +2,6 @@
 
 from unittest.mock import Mock
 
-
 from tgstats.enums import MediaType
 from tgstats.utils.features import extract_message_features, get_media_type_from_message
 
@@ -20,7 +19,8 @@ class TestExtractMessageFeatures:
         text_raw, text_len, urls_cnt, emoji_cnt = extract_message_features(message, store_text=True)
 
         assert text_raw == "Hello! This is a test message with https://example.com and 😀😊"
-        assert text_len == 63
+        # 61. The hardcoded 63 was a miscount — not a byte count either (67).
+        assert text_len == len(message.text)
         assert urls_cnt == 1
         assert emoji_cnt == 2
 
@@ -35,7 +35,8 @@ class TestExtractMessageFeatures:
         )
 
         assert text_raw is None
-        assert text_len == 63
+        # 61. The hardcoded 63 was a miscount — not a byte count either (67).
+        assert text_len == len(message.text)
         assert urls_cnt == 1
         assert emoji_cnt == 2
 
@@ -48,7 +49,8 @@ class TestExtractMessageFeatures:
         text_raw, text_len, urls_cnt, emoji_cnt = extract_message_features(message, store_text=True)
 
         assert text_raw == "Photo caption with 🎉 emoji and https://test.com link"
-        assert text_len == 54
+        # 52; the hardcoded 54 was a miscount (byte length would be 55).
+        assert text_len == len(message.caption)
         assert urls_cnt == 1
         assert emoji_cnt == 1
 

@@ -1,6 +1,5 @@
 """Tests for Unit of Work pattern."""
 
-
 import pytest
 
 from tgstats.enums import ChatType
@@ -45,8 +44,9 @@ class TestUnitOfWork:
         """Test that UoW provides access to services."""
         from telegram import Chat as TelegramChat
 
+        # telegram.Chat is immutable — assigning .username raises. It already
+        # defaults to None, so the assignment was redundant as well as illegal.
         telegram_chat = TelegramChat(id=123, type="group", title="Test")
-        telegram_chat.username = None
 
         async with UnitOfWork(test_session) as uow:
             # Use services through UoW

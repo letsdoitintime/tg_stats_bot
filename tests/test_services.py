@@ -4,9 +4,12 @@ from datetime import datetime, timezone
 from unittest.mock import Mock
 
 import pytest
+from conftest import make_tg_chat, make_tg_message, make_tg_user  # tests/ is not a package
+from sqlalchemy import select
 
+from tgstats.core.constants import DEFAULT_STORE_TEXT, DEFAULT_TIMEZONE
 from tgstats.enums import ChatType
-from tgstats.models import Chat, Message, User
+from tgstats.models import Chat, Message, Reaction, User
 from tgstats.services.factory import ServiceFactory
 
 
@@ -16,13 +19,10 @@ class TestChatService:
 
     async def test_get_or_create_chat_new(self, test_session):
         """Test creating a new chat."""
-        from telegram import Chat as TelegramChat
-
-        telegram_chat = Mock(spec=TelegramChat)
-        telegram_chat.id = 123456
-        telegram_chat.title = "Test Group"
-        telegram_chat.type = "group"
-        telegram_chat.username = None
+        # Mock(spec=TelegramChat) still auto-creates each attribute as a Mock,
+        # so is_forum/has_protected_content reached SQLAlchemy's Boolean as
+        # Mock objects. The shared builder gives every mapped column a real value.
+        telegram_chat = make_tg_chat(id=123456, title="Test Group", type="group", username=None)
 
         services = ServiceFactory(test_session)
         chat = await services.chat.get_or_create_chat(telegram_chat)
@@ -44,8 +44,10 @@ class TestChatService:
 
         assert settings is not None
         assert settings.chat_id == 123
-        assert settings.store_text is False
-        assert settings.timezone == "UTC"
+        # Bound to the constant — this asserted False while DEFAULT_STORE_TEXT
+        # is True, so it encoded a default the product does not have.
+        assert settings.store_text is DEFAULT_STORE_TEXT
+        assert settings.timezone == DEFAULT_TIMEZONE
 
     async def test_update_text_storage(self, test_session):
         """Test updating text storage setting."""
@@ -115,37 +117,20 @@ class TestMessageService:
 
     async def test_process_message(self, test_session):
         """Test processing a Telegram message."""
-        from telegram import Chat as TelegramChat
-        from telegram import User as TelegramUser
-
         # Setup
         chat = Chat(chat_id=123, title="Test", type=ChatType.GROUP)
         user = User(user_id=456, first_name="Test")
         test_session.add_all([chat, user])
         await test_session.commit()
 
-        # Mock Telegram message
-        telegram_msg = Mock()
-        telegram_msg.chat = Mock(spec=TelegramChat)
-        telegram_msg.chat.id = 123
-        telegram_msg.message_id = 789
-        telegram_msg.from_user = Mock(spec=TelegramUser)
-        telegram_msg.from_user.id = 456
-        telegram_msg.date = datetime.now(timezone.utc)
-        telegram_msg.text = "Test message"
-        telegram_msg.edit_date = None
-        telegram_msg.forward_from = None
-        telegram_msg.forward_from_chat = None
-        telegram_msg.reply_to_message = None
-        telegram_msg.entities = None
-        telegram_msg.caption_entities = None
-        telegram_msg.photo = None
-        telegram_msg.video = None
-        telegram_msg.document = None
-        telegram_msg.audio = None
-        telegram_msg.voice = None
-        telegram_msg.animation = None
-        telegram_msg.sticker = None
+        # The long hand-rolled mock below missed `chat.type`, so ChatType(...)
+        # got a Mock. The shared builder covers every field the ORM writes.
+        telegram_msg = make_tg_message(
+            message_id=789,
+            date=datetime.now(timezone.utc),
+            chat=make_tg_chat(id=123, title="Test", type="group"),
+            from_user=make_tg_user(id=456, first_name="Test"),
+        )
 
         services = ServiceFactory(test_session)
         message = await services.message.process_message(telegram_msg)
@@ -161,11 +146,14 @@ class TestReactionService:
     """Test ReactionService functionality."""
 
     async def test_process_reaction_added(self, test_session):
-        """Test processing reaction addition."""
-        from telegram import Chat as TelegramChat
-        from telegram import User as TelegramUser
+        """Reaction updates are persisted when the chat opts in.
 
-        # Setup
+        This previously asserted `len(reactions) > 0` on the return value of
+        process_reaction_update, which is declared `-> None` and returns
+        nothing — the assertion could never have passed. It also never enabled
+        capture_reactions, so the method returned early before doing any work.
+        Now it enables the setting and asserts the row that actually lands.
+        """
         chat = Chat(chat_id=123, title="Test", type=ChatType.GROUP)
         user = User(user_id=456, first_name="Test")
         message = Message(
@@ -174,23 +162,33 @@ class TestReactionService:
         test_session.add_all([chat, user, message])
         await test_session.commit()
 
-        # Mock reaction update
-        reaction_update = Mock()
-        reaction_update.chat = Mock(spec=TelegramChat)
-        reaction_update.chat.id = 123
-        reaction_update.message_id = 789
-        reaction_update.user = Mock(spec=TelegramUser)
-        reaction_update.user.id = 456
-        reaction_update.date = datetime.now(timezone.utc)
+        services = ServiceFactory(test_session)
+        await services.chat.setup_chat(123)
+        await services.chat.update_reaction_capture(123, capture_reactions=True)
+        await test_session.commit()
 
-        # Mock new reactions
         new_reaction = Mock()
         new_reaction.emoji = "👍"
+        new_reaction.is_big = False
+        reaction_update = Mock()
+        reaction_update.chat = make_tg_chat(id=123, title="Test", type="group")
+        reaction_update.message_id = 789
+        reaction_update.user = make_tg_user(id=456, first_name="Test")
+        reaction_update.date = datetime.now(timezone.utc)
         reaction_update.new_reaction = [new_reaction]
         reaction_update.old_reaction = []
 
-        services = ServiceFactory(test_session)
-        reactions = await services.reaction.process_reaction_update(reaction_update)
+        await services.reaction.process_reaction_update(reaction_update)
         await test_session.commit()
 
-        assert len(reactions) > 0
+        stored = (
+            (
+                await test_session.execute(
+                    select(Reaction).where(Reaction.chat_id == 123, Reaction.msg_id == 789)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert [r.reaction_emoji for r in stored] == ["👍"]
+        assert stored[0].removed_at is None
