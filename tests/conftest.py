@@ -124,6 +124,9 @@ def make_tg_message(**overrides):
     ):
         setattr(message, attr, None)
     # Forward / reply metadata
+    # Bot API 7.0: the flat forward_* fields are gone; forward_origin
+    # replaced them. Kept None here so a plain message stores nothing.
+    message.forward_origin = None
     message.forward_date = None
     message.forward_from = None
     message.forward_from_chat = None
