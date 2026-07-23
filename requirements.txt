@@ -39,7 +39,15 @@ uvicorn==0.35.*
 # through 4 chains, including the app's own ColoredConsoleRenderer and
 # add_app_context: 35 lines, byte-identical across 25.4.0 -> 26.1.0.
 structlog==26.1.*
-emoji==2.14.*
+# 2.15.x is a DATA change, not a helper bump: utils/features.py:40 counts
+# emoji per message with is_emoji() and STORES the count, so the package's
+# Unicode data version is part of the analytics contract.
+# scripts/emoji_parity.py over every valid codepoint: 1393 -> 1400.
+# The 7 additions are Unicode 17 (U+1F6D8 U+1FA8A U+1FA8E U+1FAC8 U+1FACD
+# U+1FAEA U+1FAEF) and NOTHING was removed — so the change is append-only
+# and no historical count can decrease. New messages using those brand-new
+# emoji will count higher than an identical message did last month.
+emoji==2.15.*
 # 1.2.x verified to parse the real .env, .env.example and 11 syntax edge cases
 # (quoting, interpolation, export kw, multiline, inline comments) byte-identically
 # to 1.1.x. Reached via pydantic-settings, which is what actually loads config.
@@ -47,7 +55,14 @@ python-dotenv==1.2.*
 
 # Step 2 additions
 python-dateutil==2.9.*
-tzdata==2025.2
+# 2026.3 verified against every zone this app uses: scripts/tzdata_parity.py
+# samples UTC offset, abbreviation and DST flag hourly through both switch
+# windows plus weekly across two years, for the zones in group_settings
+# (UTC, Europe/Sofia) and 12 others chosen for DST/non-DST, southern
+# hemisphere, half-hour offsets and recent real-world rule changes.
+# 110 transitions, zero differences. A changed IANA rule would silently
+# move message counts between heatmap hours and days.
+tzdata==2026.3
 httpx==0.28.*
 celery==5.5.*
 redis==6.4.*
