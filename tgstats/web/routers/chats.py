@@ -6,7 +6,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ...db import get_session
+from ...db import get_sync_db
 from ...models import GroupSettings
 from ...schemas.api import ChatSettings, ChatSummary
 from ..auth import verify_admin_token
@@ -18,8 +18,8 @@ router = APIRouter(prefix="/api/chats", tags=["chats"])
 
 
 @router.get("", response_model=List[ChatSummary])
-async def get_chats(
-    session: Session = Depends(get_session),
+def get_chats(
+    session: Session = Depends(get_sync_db),
     _token: None = Depends(verify_admin_token),
 ):
     """
@@ -61,9 +61,9 @@ async def get_chats(
 
 
 @router.get("/{chat_id}/settings", response_model=ChatSettings)
-async def get_chat_settings(
+def get_chat_settings(
     chat_id: int,
-    session: Session = Depends(get_session),
+    session: Session = Depends(get_sync_db),
     _token: None = Depends(verify_admin_token),
 ):
     """
