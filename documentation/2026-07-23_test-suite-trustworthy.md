@@ -12,20 +12,35 @@ anything was touched.
 
 ## App bugs the tests were right about
 
-### 1. The web heatmap displayed every day's data under the wrong label
+### 1. The heatmap API returned every day's data under the wrong label
 
 `tgstats/web/date_utils.py` — `rotate_heatmap_rows` computed
 `local_dt.isoweekday() % 7`, which yields **Sunday=0, Monday=1**. Its own
-docstring said 0=Monday, the API returns the matrix beside
-`["Monday", ..., "Sunday"]` (`routers/analytics.py`), and the template renders a
-Mon–Sun axis (`chat_detail.html`). So row 0, labelled "Monday", held Sunday's
-traffic, and every other row was shifted by one day.
+docstring said 0=Monday, and the response returns the matrix beside
+`["Monday", ..., "Sunday"]` (`routers/analytics.py:180`). So row 0, labelled
+"Monday", held Sunday's traffic, and every other row was shifted by one day.
 
 Fixed to `local_dt.weekday()` (0=Monday..6=Sunday).
 
-The bot's own heatmap in `plugins/heatmap/` uses a *separate*, self-consistent
-Sunday-first convention (`["Sun", "Mon", ...]` with dow from SQL) and is
-deliberately untouched.
+**Scope — corrected after review.** An earlier draft claimed the shipped web
+dashboard was affected, citing the Mon–Sun axis in `chat_detail.html`. That is
+wrong. The template requests `/internal/chats/{id}/...`
+(`chat_detail.html:297`), which is `tgstats/web/app.py:296` — a *different*
+endpoint with its own rotation (`app.py:340`, `(dow + 6) % 7`) that was already
+correct.
+
+`rotate_heatmap_rows` has exactly **one** caller: `routers/analytics.py:177`,
+serving the token-authenticated `/api/chats/{id}/heatmap`. The blast radius is
+that API, not the UI. The bug and the fix are real; the impact was overstated.
+
+Two other heatmap paths exist and are deliberately untouched: the bot's own in
+`plugins/heatmap/` (self-consistent Sunday-first, `["Sun", "Mon", ...]` fed by
+the SQL ISODOW to dow conversion), and `app.py`'s UI endpoint above.
+
+**Noted in passing, pre-existing and NOT fixed here:** `app.py:310` computes a
+timezone and never applies it to the heatmap query, so the UI heatmap is UTC
+while the API one is timezone-rotated. The two "Monday" columns still disagree
+with each other. Worth its own change.
 
 ### 2. An explicit date range silently dropped its last day
 
@@ -78,9 +93,15 @@ Tests that could never have passed, independent of the app:
 Stale or simply wrong expectations:
 
 - `text_len` hardcoded 63 and 54 for strings of 61 and 52 characters (byte
-  lengths are 67 and 55, so not that either). Now bound to `len(...)`.
+  lengths are 67 and 55, so not that either). Now the correct literals.
 - `capture_reactions` asserted `True`, `store_text` asserted `False` — both the
-  opposite of the product defaults. Now bound to the constants.
+  opposite of the product defaults. Now the correct literals, **not** the
+  constants: `setup_chat` builds the row *from* those constants
+  (`chat_repository.py:157,162`), so asserting against them is a tautology.
+  An intermediate version of this branch did exactly that, and review proved
+  it — flipping `DEFAULT_STORE_TEXT` left all 221 tests passing. Both defaults
+  are now also pinned in `test_new_architecture.py::test_constants_exist`,
+  where nothing had pinned them before.
 - APIs that never existed: `ChatService.update_settings`,
   `UserRepository.get_or_create_user`, `MembershipRepository.get_or_create`,
   `Message.message_id` (the column is `msg_id`), `process_message(msg, chat, user)`.
@@ -99,9 +120,24 @@ Stale or simply wrong expectations:
   builds mapped tables, so it was absent under SQLite. `conftest.py` now creates
   a SQLite stand-in. Only the view *definition* is re-expressed — the query
   under test is the production one, unchanged.
+
+  **Known divergence, found by review:** SQLite has no timestamp type, so
+  `hour_bucket` comes back as TEXT where Postgres `DATE_TRUNC` yields a
+  timestamp. The plugin path (`plugins/heatmap/repository.py`) CASTs and
+  string-compares its way past this, which is what the heatmap tests exercise;
+  `rotate_heatmap_rows` would raise `TypeError` on a TEXT bucket. So the
+  weekday fix is covered by `test_step2.py` against real `datetime` tuples
+  (4 tests, mutation-proven), **not** through the stand-in view. Everything
+  else — the ISODOW mapping, `hour`, `msg_cnt`, `unique_users`, the cutoff
+  filter — was verified to match the migration column for column.
 - **Flakiness is gone.** Its source was `cache_manager`, a module-level singleton
   holding a Redis client bound to whichever event loop created it, with keys
   surviving between tests. An autouse fixture rebinds and clears it.
+- **The suite is hermetic.** Two caching tests needed a live Redis and lacked
+  the `pytest.skip` guard their siblings had, so on a runner without Redis the
+  suite was red on arrival — fatal for something being pitched as a gate.
+  Verified: `221 passed` with Redis, `217 passed, 4 skipped` with
+  `ENABLE_CACHE=false`.
 
 ## Verification
 
@@ -112,8 +148,13 @@ Mutation-tested rather than assumed — reverting a fix must fail a test:
 | reverted fix | result |
 |---|---|
 | `weekday()` → `isoweekday() % 7` | 4 tests fail ✅ |
-| chat upsert `refresh=True` | **220 passed — unguarded** ❌ |
+| chat upsert `refresh=True` | **220 passed — unguarded** ❌ → guard added |
 | user upsert `refresh=True` | 1 test fails ✅ |
+| `timedelta(days=29)` → `30` | 1 test fails ✅ |
+| `to_date` → midnight | 1 test fails ✅ |
+| dep-resolver in-degree inversion | 2 tests fail ✅ |
+| `plugin_dirs=[]` guard | 2 tests fail ✅ |
+| flip `DEFAULT_STORE_TEXT` | **221 passed — tautology** ❌ → literals restored |
 
 That gap is why `test_upsert_returns_updated_values_for_loaded_chat` exists: a
 live bug had been fixed with nothing to stop it returning. With it, both

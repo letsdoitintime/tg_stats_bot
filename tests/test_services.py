@@ -7,7 +7,6 @@ import pytest
 from conftest import make_tg_chat, make_tg_message, make_tg_user  # tests/ is not a package
 from sqlalchemy import select
 
-from tgstats.core.constants import DEFAULT_STORE_TEXT, DEFAULT_TIMEZONE
 from tgstats.enums import ChatType
 from tgstats.models import Chat, Message, Reaction, User
 from tgstats.services.factory import ServiceFactory
@@ -44,10 +43,11 @@ class TestChatService:
 
         assert settings is not None
         assert settings.chat_id == 123
-        # Bound to the constant — this asserted False while DEFAULT_STORE_TEXT
-        # is True, so it encoded a default the product does not have.
-        assert settings.store_text is DEFAULT_STORE_TEXT
-        assert settings.timezone == DEFAULT_TIMEZONE
+        # Literals, deliberately — setup_chat builds the row from these same
+        # constants, so asserting against them is a tautology. This asserted
+        # False while the product default is True.
+        assert settings.store_text is True
+        assert settings.timezone == "UTC"
 
     async def test_update_text_storage(self, test_session):
         """Test updating text storage setting."""

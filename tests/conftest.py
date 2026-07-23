@@ -22,9 +22,15 @@ TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 # Only the view DEFINITION is re-expressed here — the query under test is the
 # production one, unchanged. Column names and semantics match the migration:
 # weekday is ISODOW (1=Monday..7=Sunday), hour is 0-23.
-#   DATE_TRUNC('hour', date) -> strftime('%Y-%m-%d %H:00:00', date)
+#   DATE_TRUNC('hour', date)  -> strftime('%Y-%m-%d %H:00:00', date)
 #   EXTRACT(ISODOW FROM date) -> strftime('%w') is 0=Sunday, so 0 maps to 7
-#   EXTRACT(HOUR FROM date)  -> strftime('%H', date)
+#   EXTRACT(HOUR FROM date)   -> strftime('%H', date)
+#
+# KNOWN DIVERGENCE: SQLite has no timestamp type, so hour_bucket is TEXT here
+# where Postgres DATE_TRUNC yields a timestamp. plugins/heatmap/repository.py
+# CASTs and string-compares past this, which is what these tests exercise;
+# web/date_utils.py:rotate_heatmap_rows would raise TypeError on a TEXT bucket,
+# so it is covered by test_step2.py against real datetimes instead.
 HEATMAP_MV_SQL = """
 CREATE VIEW IF NOT EXISTS chat_hourly_heatmap_mv AS
 SELECT

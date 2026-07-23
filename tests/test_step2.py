@@ -1,7 +1,7 @@
 """Additional tests for Step 2 functionality."""
 
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from zoneinfo import ZoneInfo
 
 import pytest

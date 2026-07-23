@@ -1,13 +1,10 @@
 """Integration tests for the improved bot architecture."""
 
-from datetime import datetime
-from unittest.mock import MagicMock
 
 import pytest
 from conftest import make_tg_chat, make_tg_message, make_tg_user  # tests/ is not a package
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from tgstats.core.constants import DEFAULT_CAPTURE_REACTIONS, DEFAULT_STORE_TEXT
 from tgstats.models import Chat
 from tgstats.services.chat_service import ChatService
 from tgstats.services.message_service import MessageService
@@ -81,12 +78,15 @@ class TestChatService:
         settings = await service.setup_chat(mock_telegram_chat.id)
 
         assert settings is not None
-        # Assert against the constants rather than literals — this asserted
-        # capture_reactions is True while DEFAULT_CAPTURE_REACTIONS has been
-        # False (reactions are opt-in), so it tested a default the product
-        # does not have. Bound to the constant it cannot drift again.
-        assert settings.store_text is DEFAULT_STORE_TEXT
-        assert settings.capture_reactions is DEFAULT_CAPTURE_REACTIONS
+        # Literals, deliberately. setup_chat builds the row FROM these same
+        # constants (chat_repository.py:157,162), so asserting against
+        # DEFAULT_STORE_TEXT / DEFAULT_CAPTURE_REACTIONS is a tautology that
+        # passes whatever the defaults become — verified: flipping
+        # DEFAULT_STORE_TEXT left the whole suite green. These pin the product
+        # behaviour: raw text IS stored by default, reactions are NOT captured.
+        # (capture_reactions was previously asserted True, which was simply wrong.)
+        assert settings.store_text is True
+        assert settings.capture_reactions is False
 
     async def test_update_settings(self, async_db_session, mock_telegram_chat):
         """Test updating chat settings.
