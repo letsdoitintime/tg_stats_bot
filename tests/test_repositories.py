@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import pytest
+from conftest import make_tg_chat  # tests/ is not a package
 
 from tgstats.enums import ChatType, MediaType, MembershipStatus
 from tgstats.models import Chat, Message, User
@@ -35,6 +36,30 @@ class TestChatRepository:
 
         assert result is None
 
+    async def test_upsert_returns_updated_values_for_loaded_chat(self, test_session):
+        """A renamed chat must come back renamed, even if already in the session.
+
+        Regression test. upsert_from_telegram writes via ON CONFLICT DO UPDATE,
+        which is raw DML the ORM does not observe, so the select that follows
+        returned the identity-map copy with its old attributes: the database
+        held "New Title" while the returned object still said "Old Title", for
+        the rest of the session. The chat must be loaded FIRST — that is what
+        puts it in the identity map and makes the staleness reachable.
+        """
+        chat = Chat(chat_id=555, title="Old Title", type=ChatType.GROUP)
+        test_session.add(chat)
+        await test_session.commit()
+
+        repo_factory = RepositoryFactory(test_session)
+        loaded = await repo_factory.chat.get_by_chat_id(555)
+        assert loaded.title == "Old Title"
+
+        tg_chat = make_tg_chat(id=555, title="New Title", type="group")
+        updated = await repo_factory.chat.upsert_from_telegram(tg_chat)
+        await test_session.commit()
+
+        assert updated.title == "New Title"
+
     async def test_get_all_chats(self, test_session):
         """Test getting all chats with pagination."""
         # Create multiple chats
@@ -63,7 +88,7 @@ class TestUserRepository:
         )
 
         repo_factory = RepositoryFactory(test_session)
-        user = await repo_factory.user.get_or_create_user(telegram_user)
+        user = await repo_factory.user.upsert_from_telegram(telegram_user)
         await test_session.commit()
 
         assert user.user_id == 12345
@@ -84,7 +109,7 @@ class TestUserRepository:
         )
 
         repo_factory = RepositoryFactory(test_session)
-        user = await repo_factory.user.get_or_create_user(telegram_user)
+        user = await repo_factory.user.upsert_from_telegram(telegram_user)
 
         # Should update existing user
         assert user.user_id == 12345
@@ -157,11 +182,11 @@ class TestMembershipRepository:
         await test_session.commit()
 
         repo_factory = RepositoryFactory(test_session)
-        membership = await repo_factory.membership.get_or_create(
+        membership = await repo_factory.membership.ensure_membership(
             chat_id=123,
             user_id=456,
-            status_current=MembershipStatus.MEMBER,
-            joined_at=datetime.now(timezone.utc),
+            status=MembershipStatus.MEMBER,
+            joined_at_if_missing=datetime.now(timezone.utc),
         )
         await test_session.commit()
 

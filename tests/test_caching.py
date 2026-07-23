@@ -1,9 +1,35 @@
 """Tests for caching utilities."""
 
-
 import pytest
 
-from tgstats.utils.cache import cache_manager, cached
+from tgstats.utils.cache import CacheManager, cache_manager, cached
+
+
+@pytest.fixture(autouse=True)
+async def isolate_cache():
+    """Give each test a cache client bound to its own event loop, and no keys.
+
+    `cache_manager` is a module-level singleton (cache.py:113) holding a Redis
+    client bound to whichever event loop first created it. pytest-asyncio runs
+    each test on a fresh loop, so from the second test onwards every call failed
+    with "Event loop is closed" — and the keys an earlier test wrote survived
+    into the next one, turning an expected cache MISS into a HIT so the
+    decorator's wrapped function never ran (call_count stayed 0).
+
+    Re-running __init__ rebinds the client to the current loop; clearing the
+    keys these tests use removes the cross-test leak. Both are needed: the
+    rebind alone still leaves stale keys in a live Redis.
+    """
+    CacheManager.__init__(cache_manager)
+    await _clear_test_keys()
+    yield
+    await _clear_test_keys()
+    await cache_manager.close()
+
+
+async def _clear_test_keys():
+    await cache_manager.invalidate_pattern("test_func:*")
+    await cache_manager.delete("test_key")
 
 
 @pytest.mark.asyncio
@@ -12,6 +38,12 @@ class TestCaching:
 
     async def test_cached_decorator_caches_result(self):
         """Test that @cached decorator caches function results."""
+        # Same guard the set/get/delete tests already use. Without it this test
+        # requires a live Redis, so the suite was red on arrival on any runner
+        # without one — and it is meant to be the gate for dependency upgrades.
+        if not cache_manager._enabled:
+            pytest.skip("Cache not enabled")
+
         call_count = 0
 
         @cached("test_func", ttl=60)
@@ -32,6 +64,9 @@ class TestCaching:
 
     async def test_cached_decorator_different_args(self):
         """Test that cache is keyed by arguments."""
+        if not cache_manager._enabled:
+            pytest.skip("Cache not enabled")
+
         call_count = 0
 
         @cached("test_func", ttl=60)

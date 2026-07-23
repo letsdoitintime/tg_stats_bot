@@ -123,19 +123,27 @@ class TestConnectionPoolMonitoring:
     """Test connection pool event listeners."""
 
     def test_connection_pool_events_are_registered(self):
-        """Test that connection pool event listeners are registered."""
+        """Our pool listeners are registered for connect/checkout/checkin.
+
+        event.contains() takes (target, identifier, fn) — the two-argument form
+        this used does not exist, so it raised TypeError rather than checking
+        anything. Naming the actual functions also makes the assertion
+        meaningful: it now fails if OUR listener is removed, not merely if some
+        unrelated library registered one.
+        """
         from sqlalchemy import event
         from sqlalchemy.pool import Pool
 
-        # Check that our event listeners are registered
-        listeners = event.contains(Pool, "connect")
-        assert listeners is True, "Pool connect event listener should be registered"
+        from tgstats.db import receive_checkin, receive_checkout, receive_connect
 
-        listeners = event.contains(Pool, "checkout")
-        assert listeners is True, "Pool checkout event listener should be registered"
-
-        listeners = event.contains(Pool, "checkin")
-        assert listeners is True, "Pool checkin event listener should be registered"
+        for identifier, fn in (
+            ("connect", receive_connect),
+            ("checkout", receive_checkout),
+            ("checkin", receive_checkin),
+        ):
+            assert event.contains(
+                Pool, identifier, fn
+            ), f"Pool {identifier} listener {fn.__name__} should be registered"
 
 
 class TestSessionErrorHandling:
@@ -143,18 +151,26 @@ class TestSessionErrorHandling:
 
     @pytest.mark.asyncio
     async def test_session_operational_error_handling(self):
-        """Test that operational errors in sessions are properly handled."""
-        with patch("tgstats.db.async_session"):
-            mock_session_instance = AsyncMock()
-            mock_session_instance.__aenter__.return_value = mock_session_instance
-            mock_session_instance.execute.side_effect = OperationalError(
-                "connection lost", None, None
-            )
+        """An OperationalError escaping the request becomes DatabaseConnectionError.
 
-            from tgstats.db import get_session
+        get_session() yields inside its try/except, so it only observes
+        exceptions thrown back INTO the generator — which is what the framework
+        does when a request handler raises. The previous version called
+        session.execute() in its own frame, where the generator could never see
+        it, and patched tgstats.db.async_session without ever attaching the mock
+        it built, so a real session was used regardless.
+        """
+        from tgstats.db import get_session
 
+        mock_session = AsyncMock()
+        mock_cm = MagicMock()
+        mock_cm.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_cm.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("tgstats.db.async_session", return_value=mock_cm):
             async_gen = get_session()
             session = await async_gen.__anext__()
+            assert session is mock_session
 
             with pytest.raises(DatabaseConnectionError):
-                await session.execute("SELECT 1")
+                await async_gen.athrow(OperationalError("connection lost", None, None))

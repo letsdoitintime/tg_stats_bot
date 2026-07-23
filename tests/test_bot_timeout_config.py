@@ -54,7 +54,10 @@ class TestBotTimeoutConfiguration:
 
         error = str(exc_info.value)
         assert "bot_get_updates_read_timeout" in error
-        assert "must be at least" in error
+        # config.py:170 words this "must be greater than ... + 10s buffer".
+        # The old assertion looked for "must be at least", which the validator
+        # has never emitted, so this failed on wording rather than behaviour.
+        assert "must be greater than" in error
 
     def test_invalid_get_updates_timeout_exact_boundary(self):
         """Test boundary condition for get_updates_read_timeout."""

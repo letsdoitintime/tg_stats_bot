@@ -22,7 +22,7 @@
 ## Remote Access Configuration
 
 Both `andrew` and `tgstats_user` can connect from:
-- **Remote IP**: 45.128.218.94
+- **Remote IP**: 2.152.66.4
 - **Local connections**: 127.0.0.1, ::1, localhost
 
 ## Connection Examples
@@ -32,7 +32,7 @@ Both `andrew` and `tgstats_user` can connect from:
 # Local connection
 psql -h localhost -p 5432 -U andrew -d tgstats
 
-# Remote connection (from 45.128.218.94)
+# Remote connection (from 2.152.66.4)
 psql -h YOUR_SERVER_IP -p 5432 -U andrew -d tgstats
 
 # Connection string
@@ -44,7 +44,7 @@ postgresql+psycopg://andrew:andrew_secure_password_2025@localhost:5432/tgstats
 # Local connection
 psql -h localhost -p 5432 -U tgstats_user -d tgstats
 
-# Remote connection (from 45.128.218.94)
+# Remote connection (from 2.152.66.4)
 psql -h YOUR_SERVER_IP -p 5432 -U tgstats_user -d tgstats
 
 # Connection string
@@ -81,7 +81,7 @@ sudo -u postgres psql -c "\du"
 ## Security Notes
 
 1. **Both users have identical permissions** on the tgstats database
-2. **Both users can connect remotely** from IP 45.128.218.94
+2. **Both users can connect remotely** from IP 2.152.66.4
 3. **Authentication uses SCRAM-SHA-256** encryption
 4. **Passwords should be changed** to something more secure
 5. **Firewall rules allow** both users to connect

@@ -114,7 +114,7 @@ jdbc:postgresql://95.216.202.228:5432/tgstats
 
 ## 🔒 **Security Notes:**
 
-1. **IP Restrictions**: Connection is allowed only from `45.128.218.94`
+1. **IP Restrictions**: Connection is allowed only from `2.152.66.4`
    - If connecting from a different IP, contact admin to add your IP to firewall rules
 
 2. **Password Security**: 

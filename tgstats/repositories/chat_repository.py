@@ -20,11 +20,19 @@ class ChatRepository(BaseRepository[Chat]):
     def __init__(self, session: AsyncSession):
         super().__init__(Chat, session)
 
-    async def get_by_chat_id(self, chat_id: int) -> Optional[Chat]:
-        """Get chat by Telegram chat ID with settings eagerly loaded."""
-        result = await self.session.execute(
-            select(Chat).where(Chat.chat_id == chat_id).options(selectinload(Chat.settings))
-        )
+    async def get_by_chat_id(self, chat_id: int, *, refresh: bool = False) -> Optional[Chat]:
+        """Get chat by Telegram chat ID with settings eagerly loaded.
+
+        refresh=True re-populates an instance already in the session's identity
+        map. Required after an upsert: ON CONFLICT DO UPDATE changes the row as
+        raw DML, which the ORM does not observe, so a plain select returns the
+        stale in-session copy — a renamed chat kept its old title for the rest
+        of the session even though the database had the new one.
+        """
+        stmt = select(Chat).where(Chat.chat_id == chat_id).options(selectinload(Chat.settings))
+        if refresh:
+            stmt = stmt.execution_options(populate_existing=True)
+        result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def upsert_from_telegram(self, tg_chat: TelegramChat) -> Chat:
@@ -116,7 +124,8 @@ class ChatRepository(BaseRepository[Chat]):
         await self.session.execute(stmt)
         await self.session.flush()
 
-        return await self.get_by_chat_id(tg_chat.id)
+        # refresh: the row above was rewritten by raw ON CONFLICT DO UPDATE
+        return await self.get_by_chat_id(tg_chat.id, refresh=True)
 
 
 class GroupSettingsRepository(BaseRepository[GroupSettings]):
@@ -159,6 +168,9 @@ class GroupSettingsRepository(BaseRepository[GroupSettings]):
         await self.session.execute(stmt)
         await self.session.flush()
 
+        # This is GroupSettingsRepository.get_by_chat_id (returns GroupSettings,
+        # not Chat) — no refresh flag, and none needed: on_conflict_do_nothing
+        # never rewrites an existing row, so nothing loaded can go stale.
         return await self.get_by_chat_id(chat_id)
 
     async def update_setting(

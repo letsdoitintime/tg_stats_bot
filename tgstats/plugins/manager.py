@@ -41,7 +41,11 @@ class PluginManager:
             plugin_dirs = [os.path.dirname(__file__)]
 
         self.plugin_dirs = plugin_dirs
-        self.config_file = os.path.join(plugin_dirs[0], "plugins.yaml")
+        # plugin_dirs=[] is a supported way to say "load nothing automatically"
+        # (distinct from None, which means "use the default dir"), so there is no
+        # directory to hold plugins.yaml. "" keeps this a str for the os.path.exists()
+        # guards at every use site, and os.path.exists("") is False.
+        self.config_file = os.path.join(plugin_dirs[0], "plugins.yaml") if plugin_dirs else ""
 
         # Initialize logger first
         self._logger = structlog.get_logger(__name__)

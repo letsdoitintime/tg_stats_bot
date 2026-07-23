@@ -1,5 +1,6 @@
 """Analytics API endpoints."""
 
+from datetime import datetime, timezone
 from typing import List, Optional
 
 import structlog
@@ -17,7 +18,7 @@ from ...schemas.api import (
     UserStatsResponse,
 )
 from ..auth import verify_admin_token
-from ..date_utils import parse_period, rotate_heatmap_rows
+from ..date_utils import parse_period, rotate_heatmap_rows, to_local_date
 from ..query_utils import (
     build_heatmap_query,
     build_period_summary_query,
@@ -104,8 +105,9 @@ async def get_chat_summary(
         avg_daily_users=avg_daily_users,
         new_users=new_users,
         left_users=left_users,
-        start_date=start_utc.date().isoformat(),
-        end_date=end_utc.date().isoformat(),
+        # Local dates, not end_utc.date() — see to_local_date().
+        start_date=to_local_date(start_utc, tz).isoformat(),
+        end_date=to_local_date(end_utc, tz).isoformat(),
         days=days,
     )
 
@@ -138,7 +140,14 @@ async def get_chat_timeseries(
     query = build_timeseries_query(is_timescale, metric)
 
     result = session.execute(
-        query, {"chat_id": chat_id, "start_date": start_utc.date(), "end_date": end_utc.date()}
+        query,
+        {
+            "chat_id": chat_id,
+            # chat_daily[_mv] is keyed by LOCAL date; end_utc.date() lands a day
+            # late for any timezone west of UTC. See to_local_date().
+            "start_date": to_local_date(start_utc, tz),
+            "end_date": to_local_date(end_utc, tz),
+        },
     ).fetchall()
 
     return [TimeseriesPoint(day=row.day.isoformat(), value=int(row.value)) for row in result]
@@ -242,7 +251,12 @@ async def get_chat_users(
     """
 
     # Add filters
-    params = {"chat_id": chat_id, "start_date": start_utc.date(), "end_date": end_utc.date()}
+    # user_chat_daily[_mv] is keyed by LOCAL date — see to_local_date().
+    params = {
+        "chat_id": chat_id,
+        "start_date": to_local_date(start_utc, tz),
+        "end_date": to_local_date(end_utc, tz),
+    }
 
     if search:
         base_query += """
@@ -304,6 +318,12 @@ async def get_chat_users(
 
     total = session.execute(text(count_query), params).fetchone().total
 
+    # Field names here are the SCHEMA's, not the SQL column aliases. Five of
+    # them differed (activity_pct/active_days/joined_at/left_at/has_left/
+    # last_message_at vs activity_percentage/active_days_ratio/days_since_joined/
+    # left/last_message), so every UserStats raised ValidationError and this
+    # endpoint returned 500 for any chat that had users.
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     users = [
         UserStats(
             user_id=row.user_id,
@@ -311,18 +331,20 @@ async def get_chat_users(
             first_name=row.first_name,
             last_name=row.last_name,
             msg_count=row.msg_count,
-            active_days=row.active_days,
-            activity_pct=float(row.activity_pct),
-            joined_at=row.joined_at.isoformat() if row.joined_at else None,
-            left_at=row.left_at.isoformat() if row.left_at else None,
-            has_left=row.has_left,
-            last_message_at=row.last_message_at.isoformat() if row.last_message_at else None,
+            activity_percentage=float(row.activity_pct),
+            active_days_ratio=f"{row.active_days}/{days}",
+            last_message=row.last_message_at.isoformat() if row.last_message_at else None,
+            days_since_joined=((now_utc - row.joined_at).days if row.joined_at else None),
+            left=row.has_left,
         )
         for row in result
     ]
 
     return UserStatsResponse(
-        users=users,
+        # `items`, not `users` — the schema field is items, with no alias, so
+        # this raised ValidationError and the endpoint returned 500 on EVERY
+        # request. Nothing in the suite invoked it.
+        items=users,
         total=total,
         page=page,
         per_page=per_page,
@@ -352,12 +374,19 @@ async def preview_retention(
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
 
+    # retention_preview() already returns exactly the schema's field names.
+    # This used to rename four of them to keys the dict never had
+    # (messages_with_text_to_clear / messages_to_delete / oldest_message_date /
+    # newest_message_date), so the endpoint raised KeyError before pydantic even
+    # ran, and returned 500 for every chat that had settings.
     return RetentionPreviewResponse(
         chat_id=result["chat_id"],
         text_retention_days=result["text_retention_days"],
         metadata_retention_days=result["metadata_retention_days"],
-        messages_with_text_to_clear=result["messages_with_text_to_clear"],
-        messages_to_delete=result["messages_to_delete"],
-        oldest_message_date=result["oldest_message_date"],
-        newest_message_date=result["newest_message_date"],
+        store_text=result["store_text"],
+        text_removal_count=result["text_removal_count"],
+        metadata_removal_count=result["metadata_removal_count"],
+        reaction_removal_count=result["reaction_removal_count"],
+        text_cutoff_date=result["text_cutoff_date"],
+        metadata_cutoff_date=result["metadata_cutoff_date"],
     )

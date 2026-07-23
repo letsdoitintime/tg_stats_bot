@@ -68,6 +68,7 @@ class UserStatsResponse(BaseModel):
     page: int
     per_page: int
     total: int
+    pages: int
 
 
 class RetentionPreviewRequest(BaseModel):

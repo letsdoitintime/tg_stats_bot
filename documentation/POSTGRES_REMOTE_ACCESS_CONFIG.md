@@ -2,7 +2,7 @@
 
 ## Summary
 Your PostgreSQL database is now configured to accept connections from:
-- **Remote IP**: 45.128.218.94
+- **Remote IP**: 2.152.66.4
 - **Local connections**: localhost, 127.0.0.1, ::1
 - **Database**: tgstats
 - **Port**: 5432 (standard PostgreSQL port)
@@ -26,7 +26,7 @@ sudo -u postgres psql -c "ALTER USER tgstats_user PASSWORD 'your_new_secure_pass
 psql -h localhost -p 5432 -U tgstats_user -d tgstats
 ```
 
-### Remote Connection (from 45.128.218.94):
+### Remote Connection (from 2.152.66.4):
 ```bash
 psql -h YOUR_SERVER_IP -p 5432 -U tgstats_user -d tgstats
 ```
@@ -40,7 +40,7 @@ postgresql+psycopg://tgstats_user:your_secure_password_here@localhost:5432/tgsta
 
 ### Firewall Rules (UFW):
 - ✅ SSH access (port 22) - allowed from anywhere
-- ✅ PostgreSQL (port 5432) - allowed from specific IP (45.128.218.94)
+- ✅ PostgreSQL (port 5432) - allowed from specific IP (2.152.66.4)
 - ✅ PostgreSQL (port 5432) - allowed locally
 - ✅ Default deny incoming, allow outgoing
 
@@ -60,7 +60,7 @@ listen_addresses = '*'
 Added rules:
 ```
 # Specific rules for tgstats database
-host    tgstats         tgstats_user    45.128.218.94/32        scram-sha-256
+host    tgstats         tgstats_user    2.152.66.4/32        scram-sha-256
 host    tgstats         tgstats_user    127.0.0.1/32           scram-sha-256
 host    tgstats         tgstats_user    ::1/128                scram-sha-256
 
@@ -81,7 +81,7 @@ DATABASE_URL=postgresql+psycopg://tgstats_user:your_secure_password_here@localho
 psql -h localhost -p 5432 -U tgstats_user -d tgstats -c "SELECT current_database(), current_user;"
 ```
 
-### Remote test (from 45.128.218.94):
+### Remote test (from 2.152.66.4):
 ```bash
 psql -h YOUR_SERVER_IP -p 5432 -U tgstats_user -d tgstats -c "SELECT current_database(), current_user;"
 ```

@@ -6,8 +6,13 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from tgstats.web.date_utils import parse_period, rotate_heatmap_rows
-from tgstats.web.query_utils import get_group_tz
+from tgstats.web.date_utils import parse_period, rotate_heatmap_rows, to_local_date
+from tgstats.web.query_utils import (
+    build_heatmap_query,
+    build_timeseries_query,
+    get_aggregate_table_name,
+    get_group_tz,
+)
 
 
 class TestTimezoneHandling:
@@ -28,8 +33,10 @@ class TestTimezoneHandling:
         start_utc, end_utc, days = parse_period(from_date="2025-01-01", to_date="2025-01-07", tz=tz)
 
         assert days == 7
-        # Sofia is ahead of UTC, so UTC times should be earlier
-        assert start_utc.hour < 12  # Should be earlier in the day
+        # Sofia is ahead of UTC, so 2025-01-01 00:00 Sofia is 2024-12-31 22:00 UTC.
+        # Assert the instant, not the hour number — the old `start_utc.hour < 12`
+        # compared 22 < 12 and could only ever have passed for a timezone behind UTC.
+        assert start_utc == datetime(2024, 12, 31, 22, 0)
 
     def test_parse_period_sofia_timezone(self):
         """Test timezone handling for Europe/Sofia specifically."""
@@ -45,6 +52,39 @@ class TestTimezoneHandling:
         assert start_utc.hour == 22
         assert end_utc.day == 15
         assert end_utc.hour == 21
+
+    def test_local_date_bounds_west_of_utc(self):
+        """Daily-aggregate bounds must be LOCAL dates, not end_utc.date().
+
+        Regression test. Moving to_date to the local end of day (correct for
+        timestamp ranges) pushes end_utc onto the NEXT UTC date for any timezone
+        west of UTC: America/Los_Angeles to=2025-01-07 gives end_utc
+        2025-01-08 07:59. chat_daily[_mv] / user_chat_daily[_mv] are keyed by
+        local date, so bounding them with end_utc.date() silently included an
+        extra day. Every existing test used UTC or Europe/Sofia (both at or east
+        of UTC), where the bug is invisible.
+        """
+        tz = ZoneInfo("America/Los_Angeles")
+        start_utc, end_utc, days = parse_period(from_date="2025-01-01", to_date="2025-01-07", tz=tz)
+
+        # The raw UTC instant does land on the next day — that part is correct,
+        # it is what makes the timestamp range cover all of 7 Jan locally.
+        assert end_utc.date().isoformat() == "2025-01-08"
+
+        # ...but the aggregate bound must be the local date that was asked for.
+        assert to_local_date(start_utc, tz).isoformat() == "2025-01-01"
+        assert to_local_date(end_utc, tz).isoformat() == "2025-01-07"
+        assert days == 7
+
+    def test_local_date_bounds_east_of_utc_and_utc(self):
+        """Same bounds hold at and east of UTC."""
+        for name in ("UTC", "Europe/Sofia"):
+            tz = ZoneInfo(name)
+            start_utc, end_utc, _ = parse_period(
+                from_date="2025-01-01", to_date="2025-01-07", tz=tz
+            )
+            assert to_local_date(start_utc, tz).isoformat() == "2025-01-01", name
+            assert to_local_date(end_utc, tz).isoformat() == "2025-01-07", name
 
     def test_get_group_tz_with_settings(self):
         """Test getting group timezone from settings."""
@@ -160,19 +200,26 @@ class TestAggregateQueries:
     """Test aggregate query logic."""
 
     def test_timescale_vs_postgres_branching(self):
-        """Test that we properly branch between TimescaleDB and PostgreSQL."""
-        # Mock the check function
-        with patch("tgstats.web.app.check_timescaledb_available") as mock_check:
-            # Test TimescaleDB path
-            mock_check.return_value = True
-            # Would test that we use 'chat_daily' table
+        """TimescaleDB uses continuous aggregates; plain PG uses the _mv views.
 
-            # Test PostgreSQL path
-            mock_check.return_value = False
-            # Would test that we use 'chat_daily_mv' table
+        Previously this patched `tgstats.web.app.check_timescaledb_available` —
+        a name that does not exist there (it lives in web/query_utils.py) — and
+        then asserted nothing at all. It failed on the patch target, not on the
+        behaviour, and would have passed with the branching completely broken.
+        """
+        assert get_aggregate_table_name(True, "chat_daily") == "chat_daily"
+        assert get_aggregate_table_name(False, "chat_daily") == "chat_daily_mv"
 
-            # This is more of a integration test that would need a real database
-            pass
+        # The branch has to reach the SQL, not just the helper.
+        for is_timescale, expected in ((True, "chat_daily"), (False, "chat_daily_mv")):
+            sql = str(build_timeseries_query(is_timescale, "messages"))
+            assert f"FROM {expected}" in sql
+
+        for is_timescale, expected in (
+            (True, "chat_hourly_heatmap"),
+            (False, "chat_hourly_heatmap_mv"),
+        ):
+            assert f"FROM {expected}" in str(build_heatmap_query(is_timescale))
 
 
 @pytest.fixture
@@ -221,3 +268,71 @@ def test_timezone_edge_cases():
 
 if __name__ == "__main__":
     pytest.main([__file__])
+
+
+class TestAggregateDateBounds:
+    """The endpoints must bind LOCAL dates to daily-aggregate queries.
+
+    These call the router functions with a mocked session and inspect the
+    parameters actually bound. Asserting on to_local_date() alone was not
+    enough: reverting the call sites to end_utc.date() left the whole suite
+    green, because nothing exercised the binding itself.
+    """
+
+    @staticmethod
+    def _session_returning_nothing():
+        session = Mock()
+        session.execute.return_value.fetchall.return_value = []
+        return session
+
+    @pytest.mark.asyncio
+    async def test_timeseries_binds_local_dates(self):
+        from tgstats.web.routers import analytics
+
+        session = self._session_returning_nothing()
+        with (
+            patch.object(analytics, "get_group_tz", return_value=ZoneInfo("America/Los_Angeles")),
+            patch.object(analytics, "check_timescaledb_available", return_value=False),
+        ):
+            await analytics.get_chat_timeseries(
+                chat_id=1,
+                metric="messages",
+                from_date="2025-01-01",
+                to_date="2025-01-07",
+                session=session,
+                _token=None,
+            )
+
+        params = session.execute.call_args[0][1]
+        assert params["start_date"].isoformat() == "2025-01-01"
+        # end_utc is 2025-01-08 07:59 for LA; binding that date would pull in
+        # an extra day of chat_daily aggregates.
+        assert params["end_date"].isoformat() == "2025-01-07"
+
+    @pytest.mark.asyncio
+    async def test_users_binds_local_dates(self):
+        from tgstats.web.routers import analytics
+
+        session = self._session_returning_nothing()
+        # the users endpoint reads a count via .fetchone().total
+        session.execute.return_value.fetchone.return_value = Mock(total=0)
+        with (
+            patch.object(analytics, "get_group_tz", return_value=ZoneInfo("America/Los_Angeles")),
+            patch.object(analytics, "check_timescaledb_available", return_value=False),
+        ):
+            await analytics.get_chat_users(
+                chat_id=1,
+                from_date="2025-01-01",
+                to_date="2025-01-07",
+                sort="act",
+                search=None,
+                left=None,
+                page=1,
+                per_page=50,
+                session=session,
+                _token=None,
+            )
+
+        bound = [c[0][1] for c in session.execute.call_args_list if len(c[0]) > 1]
+        assert bound, "no parameterised query was executed"
+        assert all(p["end_date"].isoformat() == "2025-01-07" for p in bound if "end_date" in p)

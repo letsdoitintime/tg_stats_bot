@@ -166,8 +166,10 @@ class TestConstants:
     def test_constants_exist(self):
         """Test that constants are defined."""
         from tgstats.core.constants import (
+            DEFAULT_CAPTURE_REACTIONS,
             DEFAULT_LOCALE,
             DEFAULT_METADATA_RETENTION_DAYS,
+            DEFAULT_STORE_TEXT,
             DEFAULT_TEXT_RETENTION_DAYS,
             DEFAULT_TIMEZONE,
             TASK_TIME_LIMIT,
@@ -178,6 +180,10 @@ class TestConstants:
         assert DEFAULT_TIMEZONE == "UTC"
         assert DEFAULT_LOCALE == "en"
         assert TASK_TIME_LIMIT == 30 * 60
+        # Privacy-relevant defaults: whether raw message text is persisted, and
+        # whether reactions are collected. Neither was pinned anywhere before.
+        assert DEFAULT_STORE_TEXT is True
+        assert DEFAULT_CAPTURE_REACTIONS is False
 
 
 class TestSchemas:
