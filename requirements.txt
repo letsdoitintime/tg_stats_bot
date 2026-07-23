@@ -21,8 +21,16 @@ psycopg[binary]==3.3.*
 # 0.31.x verified on the same harness through the ASYNC path, which is what
 # the bot writes with. Proving psycopg says nothing about asyncpg.
 asyncpg==0.31.*
-pydantic==2.11.*
-pydantic-settings==2.10.*
+# 2.13.x/2.14.x verified byte-identical to 2.11.7/2.10.1 across every model in
+# schemas/api.py (a FastAPI response_model wire contract) and schemas/commands.py
+# (the "on"/"off" -> bool coercion), plus every core/config.py Settings
+# validator -- same accepted/rejected values, same error type/loc/msg/input,
+# same model_json_schema(), same coerced types. Also confirmed the deprecated
+# Field(..., env=...) style is still just a PydanticDeprecatedSince20 warning
+# (47 fields), not an error. scripts/pydantic_parity.py; bump together, since
+# pydantic-settings depends on pydantic and loads this app's config.
+pydantic==2.13.*
+pydantic-settings==2.14.*
 # 0.139.x is a MAJOR that DROPPED starlette's upper bound (see the starlette
 # comment below — this is the day it started mattering). Killer question for
 # a web framework isn't "does it import", it's whether the mechanisms still
