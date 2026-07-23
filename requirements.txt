@@ -32,7 +32,13 @@ fastapi[all]==0.116.*
 # fastapi — which is exactly the day it matters. Bump it WITH fastapi, never alone.
 starlette==0.47.*
 uvicorn==0.35.*
-structlog==25.4.*
+# 26.x is a MAJOR, and structlog is imported by nearly every module here.
+# Killer question was whether the configured chain still RENDERS the same —
+# no test reads log lines, so a reordered key or changed exception folding
+# would ship silently. scripts/structlog_parity.py renders a fixed event set
+# through 4 chains, including the app's own ColoredConsoleRenderer and
+# add_app_context: 35 lines, byte-identical across 25.4.0 -> 26.1.0.
+structlog==26.1.*
 emoji==2.14.*
 # 1.2.x verified to parse the real .env, .env.example and 11 syntax edge cases
 # (quoting, interpolation, export kw, multiline, inline comments) byte-identically
