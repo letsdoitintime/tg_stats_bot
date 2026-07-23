@@ -23,15 +23,35 @@ psycopg[binary]==3.3.*
 asyncpg==0.31.*
 pydantic==2.11.*
 pydantic-settings==2.10.*
-fastapi[all]==0.116.*
-# starlette is a fastapi transitive. Under the fastapi pin above this line is
-# redundant TODAY — fastapi 0.116.1 declares `starlette<0.48.0,>=0.40.0`, so it
-# could not drift past 0.47.x anyway. It is here because newer fastapi DROPPED
-# that upper bound: 0.139.2 declares a bare `starlette>=0.46.0` and resolves to
-# starlette 1.3.1, a major. So this pin does nothing until the day someone bumps
-# fastapi — which is exactly the day it matters. Bump it WITH fastapi, never alone.
-starlette==0.47.*
-uvicorn==0.35.*
+# 0.139.x is a MAJOR that DROPPED starlette's upper bound (see the starlette
+# comment below — this is the day it started mattering). Killer question for
+# a web framework isn't "does it import", it's whether the mechanisms still
+# fire: scripts/framework_parity.py builds a small app in-process mirroring
+# app.py's own stack — lifespan startup/shutdown (proven via `with
+# TestClient`, not just import), two stacked custom middleware layers, CORS
+# preflight for an allowed AND a disallowed origin, gzip (and the size
+# threshold that skips it), a custom-exception -> JSON handler including MRO
+# dispatch (the specific subclass's handler wins over the base-class
+# catch-all), the 422 body shape exactly as error_handlers.py wraps it
+# (field/message/type extraction from exc.errors()), and dependency_overrides.
+# 16 checks, byte-identical 0.116.1 -> 0.139.2. The full tests/ suite was also
+# re-run under the new pins: same 234 passed / 3 pre-existing failures
+# (unrelated settings-monkeypatch tests, fail identically on both versions).
+fastapi[all]==0.139.*
+# starlette is the mechanism layer fastapi drives (middleware stack, CORS,
+# gzip, exception dispatch) — proven on the SAME harness as fastapi above,
+# since bumping one without the other was never possible to test in
+# isolation. One new, harmless signal: starlette.testclient now prefers an
+# optional `httpx2` package and warns when falling back to plain httpx
+# (still installed, still what TestClient actually uses) — not a behaviour
+# change, nothing to act on now.
+starlette==1.3.*
+# 0.51.x: TestClient's ASGITransport never touches uvicorn's real HTTP
+# server loop, so framework_parity.py says nothing about this package on its
+# own. Separately smoke-tested with a real uvicorn.Server on a real socket
+# (not TestClient) serving one request end-to-end: identical status, body,
+# and headers on 0.35.0 and 0.51.0.
+uvicorn==0.51.*
 # 26.x is a MAJOR, and structlog is imported by nearly every module here.
 # Killer question was whether the configured chain still RENDERS the same —
 # no test reads log lines, so a reordered key or changed exception folding

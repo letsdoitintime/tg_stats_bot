@@ -288,3 +288,67 @@ class TestReadiness:
         # No bot application is registered in the test process, so webhook mode
         # must still report an honest failure rather than skipping.
         assert out["available"] is False
+
+
+class TestTemplateRendering:
+    """The UI routes must actually render through the REAL app.
+
+    Regression guard for a genuine breaking change: starlette 1.3 removed the
+    old `TemplateResponse(name, context)` positional order in favour of
+    `TemplateResponse(request, name, context)`. Under the old call the template
+    NAME was read as the request and the context dict as the name, so jinja
+    raised "TypeError: unhashable type: 'dict'" and /ui returned 500.
+
+    These go through TestClient against the real app so they exercise app.py's
+    OWN call sites. Calling templates.TemplateResponse() directly from the test
+    would only re-assert starlette's signature and would pass even with app.py
+    still broken — verified: that version of this test caught nothing.
+    """
+
+    @staticmethod
+    def _client():
+        from starlette.testclient import TestClient
+
+        from tgstats.db import get_session
+        from tgstats.web.app import app
+
+        class _Result:
+            def fetchall(self):
+                return []
+
+        class _Session:
+            async def execute(self, *a, **k):
+                return _Result()
+
+            async def get(self, *a, **k):
+                from types import SimpleNamespace
+
+                return SimpleNamespace(
+                    chat_id=-100, title="ВелоПокатушки 🇺🇦", type="supergroup"
+                )
+
+        async def _fake_session():
+            yield _Session()
+
+        app.dependency_overrides[get_session] = _fake_session
+        return TestClient(app), app
+
+    def test_ui_chat_list_renders(self):
+        client, app = self._client()
+        try:
+            with client:  # the `with` matters: it runs lifespan
+                resp = client.get("/ui")
+            assert resp.status_code == 200, resp.text[:200]
+            assert "Telegram Analytics" in resp.text
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_ui_chat_detail_renders(self):
+        client, app = self._client()
+        try:
+            with client:
+                resp = client.get("/ui/chat/-100")
+            assert resp.status_code == 200, resp.text[:200]
+            assert "ВелоПокатушки" in resp.text
+        finally:
+            app.dependency_overrides.clear()
