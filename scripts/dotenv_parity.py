@@ -30,7 +30,7 @@ from dotenv import dotenv_values
 # Refuse to write anywhere inside the working tree. The repo has no .dockerignore
 # and the Dockerfile does `COPY . .`, so an output file dropped in the repo root
 # gets committed by `git add -A` and baked into the image.
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.realpath(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def digest_file(path):
@@ -58,7 +58,10 @@ def main():
     if len(sys.argv) < 3:
         sys.exit(f"usage: {sys.argv[0]} <out.json OUTSIDE the repo> <env-file>...")
 
-    out_path = os.path.abspath(sys.argv[1])
+    # realpath, not abspath: an existing symlink under /tmp pointing back into
+    # the checkout would otherwise pass the guard and open() would follow it,
+    # writing the secret-derived artifact where COPY . . can bake it in.
+    out_path = os.path.realpath(sys.argv[1])
     if os.path.commonpath([out_path, REPO_ROOT]) == REPO_ROOT:
         sys.exit(f"refusing to write inside the repo ({REPO_ROOT}) - use /tmp")
 

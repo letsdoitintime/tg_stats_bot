@@ -46,17 +46,16 @@ def main():
         sys.exit(f"usage: {sys.argv[0]} <out.json>")
 
     hits, errors = classify()
-    payload = {
-        "version": version("emoji"),
-        "count": len(hits),
-        "codepoints": hits,
-        "errors": errors,
-    }
+    # The package version deliberately does NOT go in the artifact — it goes to
+    # stdout. Storing it would make the documented `diff` fail on every upgrade
+    # even when classification is byte-identical, which is the one thing this
+    # harness exists to detect.
+    payload = {"count": len(hits), "codepoints": hits, "errors": errors}
     with open(sys.argv[1], "w") as handle:
         json.dump(payload, handle, indent=1)
 
     print(
-        f"emoji {payload['version']}: {len(hits)} codepoints classified as emoji"
+        f"emoji {version('emoji')}: {len(hits)} codepoints classified as emoji"
         f"{f', {len(errors)} raised' if errors else ''}"
     )
 
