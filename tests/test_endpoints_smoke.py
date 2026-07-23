@@ -209,3 +209,55 @@ class TestAnalyticsRouter:
         assert out.metadata_removal_count == 2
         assert out.reaction_removal_count == 1
         assert out.store_text is True
+
+
+class TestRealDataShapes:
+    """Guards for bugs that only appear against the real database.
+
+    Mocked rows cannot catch these: the columns are TIMESTAMP WITH TIME ZONE,
+    so real rows come back timezone-aware while hand-built fixtures are naive.
+    """
+
+    def test_days_since_handles_aware_and_naive(self):
+        from datetime import timedelta
+        from datetime import timezone as dt_timezone
+
+        from tgstats.web.routers.analytics import _days_since
+
+        now = datetime.now(dt_timezone.utc)
+        aware = now - timedelta(days=10)
+        naive = aware.replace(tzinfo=None)
+
+        # memberships.joined_at is timestamptz -> aware. Subtracting a naive
+        # "now" raised "can't subtract offset-naive and offset-aware datetimes"
+        # and 500'd /users for every chat that had a joined member.
+        assert _days_since(aware, now) == 10
+        assert _days_since(naive, now) == 10
+        assert _days_since(None, now) is None
+
+    def test_retention_preview_does_not_shadow_datetime_timezone(self):
+        """celery_tasks unpacked a DB column into the name `timezone`.
+
+        That shadowed the `datetime.timezone` import, so the next line evaluated
+        'UTC'.utc and the task raised AttributeError on every call — which the
+        endpoint reported as a 404 "not found".
+        """
+        from tgstats import celery_tasks
+
+        session = Mock()
+        session.execute.return_value.fetchone.side_effect = [
+            (90, 365, True, "UTC"),  # settings row: last field is the tz STRING
+            (4,),
+            (2,),
+            (1,),
+        ]
+        cm = Mock()
+        cm.__enter__ = Mock(return_value=session)
+        cm.__exit__ = Mock(return_value=False)
+
+        with patch.object(celery_tasks, "get_sync_session", return_value=cm):
+            result = celery_tasks.retention_preview(1)
+
+        assert "error" not in result, result.get("error")
+        assert result["text_retention_days"] == 90
+        assert result["store_text"] is True

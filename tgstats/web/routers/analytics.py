@@ -192,6 +192,22 @@ async def get_chat_heatmap(
     }
 
 
+def _days_since(joined, now_aware):
+    """Whole days between `joined` and now, tolerating naive or aware values.
+
+    messages/memberships columns are TIMESTAMP WITH TIME ZONE, so joined_at
+    arrives timezone-aware and subtracting a naive "now" raises
+    "can't subtract offset-naive and offset-aware datetimes". Older rows written
+    before the timestamptz migration can still come back naive, so normalise
+    rather than assuming either shape.
+    """
+    if joined is None:
+        return None
+    if joined.tzinfo is None:
+        joined = joined.replace(tzinfo=timezone.utc)
+    return (now_aware - joined).days
+
+
 @router.get("/{chat_id}/users", response_model=UserStatsResponse)
 async def get_chat_users(
     chat_id: int,
@@ -323,7 +339,7 @@ async def get_chat_users(
     # last_message_at vs activity_percentage/active_days_ratio/days_since_joined/
     # left/last_message), so every UserStats raised ValidationError and this
     # endpoint returned 500 for any chat that had users.
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_utc = datetime.now(timezone.utc)
     users = [
         UserStats(
             user_id=row.user_id,
@@ -334,7 +350,7 @@ async def get_chat_users(
             activity_percentage=float(row.activity_pct),
             active_days_ratio=f"{row.active_days}/{days}",
             last_message=row.last_message_at.isoformat() if row.last_message_at else None,
-            days_since_joined=((now_utc - row.joined_at).days if row.joined_at else None),
+            days_since_joined=_days_since(row.joined_at, now_utc),
             left=row.has_left,
         )
         for row in result
