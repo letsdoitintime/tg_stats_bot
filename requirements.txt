@@ -11,7 +11,15 @@
 # Keep this file in step with the venv; a bump belongs here and in the venv together.
 
 # Core dependencies
-python-telegram-bot[all]==22.5.*
+# 22.8.x verified: every telegram.Message/Chat/User attribute this app reads
+# (message_repository.py, chat_repository.py, user_repository.py,
+# features.py — 64 attributes total, across all 8 media types and
+# MessageEntity) still exists with the same type and stays immutable the
+# same way — same AttributeError, same message text. Bumped together with
+# celery below; scripts/runtime_parity.py proves both in one harness. Diff
+# vs 22.5 is only brand-new optional Bot API fields (e.g. Message.rating,
+# ChatFullInfo.can_manage_bots) that nothing here reads.
+python-telegram-bot[all]==22.8.*
 sqlalchemy==2.0.*  # 2.0.51 verified: type round-trip unchanged (scripts/dbdriver_parity.py)
 alembic==1.16.*
 # 3.3.x verified to round-trip every type the schema uses — Decimal, date,
@@ -84,7 +92,12 @@ python-dateutil==2.9.*
 # move message counts between heatmap hours and days.
 tzdata==2026.3
 httpx==0.28.*
-celery==5.5.*
+# 5.6.x verified: a task's serialized wire message (headers+body, captured
+# through kombu's in-process memory transport — no real broker) and the beat
+# schedule / retry-decorator shape are byte-identical to 5.5.3. kombu 5.5.4
+# -> 5.6.2 and billiard 4.2.1 -> 4.2.4 move with it; same harness as
+# python-telegram-bot above — scripts/runtime_parity.py.
+celery==5.6.*
 # 8.0.x verified on scripts/redis_parity.py: cache round-trip (dict/list/nested/
 # unicode+emoji/int/float/bool/None) byte-identical, TTL and scan_iter/delete
 # unchanged, and the ConnectionError/TimeoutError/ResponseError/RedisError
