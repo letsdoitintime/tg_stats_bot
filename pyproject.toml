@@ -19,8 +19,10 @@ dependencies = { file = ["requirements.txt"] }
 optional-dependencies.dev = { file = ["requirements-dev.txt"] }
 
 [build-system]
-# >=62.6 for dynamic optional-dependencies from file
-requires = ["setuptools>=62.6"]
+# >=66.1: 62.6 added dynamic optional-dependencies from file, but only 66.1
+# auto-includes the referenced requirement files in an sdist. Below that a
+# built sdist cannot regenerate its dependency metadata (no MANIFEST.in here).
+requires = ["setuptools>=66.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
