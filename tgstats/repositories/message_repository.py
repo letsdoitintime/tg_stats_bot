@@ -1,7 +1,7 @@
 """Message repository for database operations."""
 
-from datetime import timezone
-from typing import Any, Dict, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -10,6 +10,47 @@ from telegram import Message as TelegramMessage
 
 from ..models import Message
 from .base import BaseRepository
+
+
+def extract_forward_origin(
+    tg_message: TelegramMessage,
+) -> Tuple[
+    Optional[int], Optional[int], Optional[int], Optional[str], Optional[str], Optional[datetime]
+]:
+    """Map Bot API 7.0's `forward_origin` onto this table's forward_* columns.
+
+    Returns (from_user_id, from_chat_id, from_message_id, signature,
+    sender_name, date) — the same six values the pre-7.0 flat attributes used
+    to supply, so the stored schema is unchanged.
+
+    The four origin variants carry different information, which is why a single
+    flat mapping was replaced upstream:
+      MessageOriginUser        sender_user      -> a visible user
+      MessageOriginHiddenUser  sender_user_name -> user hid their account, name only
+      MessageOriginChat        sender_chat      -> sent on behalf of a group
+      MessageOriginChannel     chat + message_id -> a channel post, linkable back
+
+    `date` is present on every variant and is timezone-aware; it is normalised
+    to naive UTC to match how every other datetime is stored here.
+    """
+    origin = getattr(tg_message, "forward_origin", None)
+    if origin is None:
+        return (None, None, None, None, None, None)
+
+    from_user_id = getattr(getattr(origin, "sender_user", None), "id", None)
+    # A channel post exposes `chat`; a group-on-behalf-of post exposes
+    # `sender_chat`. Both land in the same column, as before.
+    chat_obj = getattr(origin, "chat", None) or getattr(origin, "sender_chat", None)
+    from_chat_id = getattr(chat_obj, "id", None)
+    from_message_id = getattr(origin, "message_id", None)
+    signature = getattr(origin, "author_signature", None)
+    sender_name = getattr(origin, "sender_user_name", None)
+
+    date = getattr(origin, "date", None)
+    if date is not None and date.tzinfo:
+        date = date.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return (from_user_id, from_chat_id, from_message_id, signature, sender_name, date)
 
 
 class MessageRepository(BaseRepository[Message]):
@@ -61,23 +102,24 @@ class MessageRepository(BaseRepository[Message]):
         if edit_date and edit_date.tzinfo:
             edit_date = edit_date.astimezone(timezone.utc).replace(tzinfo=None)
 
-        # Extract forward information
-        forward_date = None
-        if hasattr(tg_message, "forward_date") and tg_message.forward_date:
-            forward_date = tg_message.forward_date
-            if forward_date.tzinfo:
-                forward_date = forward_date.astimezone(timezone.utc).replace(tzinfo=None)
-
-        forward_from_user_id = None
-        if hasattr(tg_message, "forward_from") and tg_message.forward_from:
-            forward_from_user_id = tg_message.forward_from.id
-
-        forward_from_chat_id = None
-        forward_from_message_id = None
-        if hasattr(tg_message, "forward_from_chat") and tg_message.forward_from_chat:
-            forward_from_chat_id = tg_message.forward_from_chat.id
-        if hasattr(tg_message, "forward_from_message_id") and tg_message.forward_from_message_id:
-            forward_from_message_id = tg_message.forward_from_message_id
+        # Extract forward information from forward_origin.
+        #
+        # This used to read tg_message.forward_from / .forward_from_chat /
+        # .forward_from_message_id / .forward_signature / .forward_sender_name /
+        # .forward_date. Bot API 7.0 replaced all six with a single
+        # `forward_origin` object, and python-telegram-bot removed the legacy
+        # attributes entirely — so every hasattr()/getattr() guard above
+        # silently evaluated to None and NOTHING was ever stored. Confirmed on
+        # production: 0 of 107,089 messages had any forward metadata, including
+        # 175 that is_automatic_forward marks as channel auto-forwards.
+        (
+            forward_from_user_id,
+            forward_from_chat_id,
+            forward_from_message_id,
+            forward_signature,
+            forward_sender_name,
+            forward_date,
+        ) = extract_forward_origin(tg_message)
 
         # Extract caption entities
         caption_entities_json = None
@@ -173,8 +215,8 @@ class MessageRepository(BaseRepository[Message]):
             "forward_from_user_id": forward_from_user_id,
             "forward_from_chat_id": forward_from_chat_id,
             "forward_from_message_id": forward_from_message_id,
-            "forward_signature": getattr(tg_message, "forward_signature", None),
-            "forward_sender_name": getattr(tg_message, "forward_sender_name", None),
+            "forward_signature": forward_signature,
+            "forward_sender_name": forward_sender_name,
             "forward_date": forward_date,
             "is_automatic_forward": getattr(tg_message, "is_automatic_forward", None),
             # Additional metadata
