@@ -363,7 +363,10 @@ async def ui_chat_list(request: Request, session: AsyncSession = Depends(get_ses
 
     chats = (await session.execute(query)).fetchall()
 
-    return templates.TemplateResponse("chat_list.html", {"request": request, "chats": chats})
+    # request FIRST: starlette 1.3 removed the old TemplateResponse(name, context)
+    # positional order, so the name was being read as the request and the context
+    # dict as the name -> "TypeError: unhashable type: 'dict'" from jinja's cache.
+    return templates.TemplateResponse(request, "chat_list.html", {"chats": chats})
 
 
 @app.get("/ui/chat/{chat_id}", response_class=HTMLResponse)
@@ -376,8 +379,9 @@ async def ui_chat_detail(
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
 
+    # request FIRST — see ui_chat_list above.
     return templates.TemplateResponse(
-        "chat_detail.html", {"request": request, "chat": chat, "chat_id": chat_id}
+        request, "chat_detail.html", {"chat": chat, "chat_id": chat_id}
     )
 
 
