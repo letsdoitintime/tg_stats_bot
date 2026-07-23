@@ -12,10 +12,15 @@
 
 # Core dependencies
 python-telegram-bot[all]==22.5.*
-sqlalchemy==2.0.*
+sqlalchemy==2.0.*  # 2.0.51 verified: type round-trip unchanged (scripts/dbdriver_parity.py)
 alembic==1.16.*
-psycopg[binary]==3.2.*
-asyncpg==0.30.*
+# 3.3.x verified to round-trip every type the schema uses — Decimal, date,
+# naive/aware timestamptz, jsonb, bool, unicode — in BOTH directions, via
+# scripts/dbdriver_parity.py. Bump asyncpg with it; they are separate codecs.
+psycopg[binary]==3.3.*
+# 0.31.x verified on the same harness through the ASYNC path, which is what
+# the bot writes with. Proving psycopg says nothing about asyncpg.
+asyncpg==0.31.*
 pydantic==2.11.*
 pydantic-settings==2.10.*
 fastapi[all]==0.116.*
