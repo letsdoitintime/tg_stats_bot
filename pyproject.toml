@@ -3,30 +3,26 @@ name = "tg-stats"
 version = "0.1.0"
 description = "Telegram analytics bot with multi-group support"
 requires-python = ">=3.12"
-dependencies = [
-    "python-telegram-bot[all]>=21.0",
-    "sqlalchemy>=2.0",
-    "alembic>=1.13",
-    "psycopg[binary]>=3.1",
-    "pydantic>=2.0",
-    "pydantic-settings>=2.0",
-    "fastapi>=0.100",
-    "uvicorn>=0.20",
-    "structlog>=23.0",
-    "emoji>=2.8",
-    "python-dotenv>=1.0",
-]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0",
-    "pytest-asyncio>=0.21",
-    "ruff>=0.1",
-    "black>=23.0",
-]
+# Dependencies are read from requirements.txt / requirements-dev.txt so there is
+# exactly ONE pinned source of truth. They used to be duplicated here as open
+# floors (fastapi>=0.100, structlog>=23.0, ...) with nine runtime packages
+# missing entirely, and install_requirements.sh prefers this file whenever it
+# exists — so `pip install -e .` resolved fastapi 0.139 + starlette 1.3 and
+# structlog 26 (every deferred major, at once) while omitting redis, celery,
+# prometheus-client, pyyaml, asyncpg and tzdata, which the bot imports at
+# startup. Editing pins in one file and not the other is what caused that.
+dynamic = ["dependencies", "optional-dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+optional-dependencies.dev = { file = ["requirements-dev.txt"] }
 
 [build-system]
-requires = ["setuptools>=61.0"]
+# >=66.1: 62.6 added dynamic optional-dependencies from file, but only 66.1
+# auto-includes the referenced requirement files in an sdist. Below that a
+# built sdist cannot regenerate its dependency metadata (no MANIFEST.in here).
+requires = ["setuptools>=66.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
