@@ -17,7 +17,7 @@ from ...schemas.api import (
     UserStatsResponse,
 )
 from ..auth import verify_admin_token
-from ..date_utils import parse_period, rotate_heatmap_rows
+from ..date_utils import parse_period, rotate_heatmap_rows, to_local_date
 from ..query_utils import (
     build_heatmap_query,
     build_period_summary_query,
@@ -104,8 +104,9 @@ async def get_chat_summary(
         avg_daily_users=avg_daily_users,
         new_users=new_users,
         left_users=left_users,
-        start_date=start_utc.date().isoformat(),
-        end_date=end_utc.date().isoformat(),
+        # Local dates, not end_utc.date() — see to_local_date().
+        start_date=to_local_date(start_utc, tz).isoformat(),
+        end_date=to_local_date(end_utc, tz).isoformat(),
         days=days,
     )
 
@@ -138,7 +139,14 @@ async def get_chat_timeseries(
     query = build_timeseries_query(is_timescale, metric)
 
     result = session.execute(
-        query, {"chat_id": chat_id, "start_date": start_utc.date(), "end_date": end_utc.date()}
+        query,
+        {
+            "chat_id": chat_id,
+            # chat_daily[_mv] is keyed by LOCAL date; end_utc.date() lands a day
+            # late for any timezone west of UTC. See to_local_date().
+            "start_date": to_local_date(start_utc, tz),
+            "end_date": to_local_date(end_utc, tz),
+        },
     ).fetchall()
 
     return [TimeseriesPoint(day=row.day.isoformat(), value=int(row.value)) for row in result]
@@ -242,7 +250,12 @@ async def get_chat_users(
     """
 
     # Add filters
-    params = {"chat_id": chat_id, "start_date": start_utc.date(), "end_date": end_utc.date()}
+    # user_chat_daily[_mv] is keyed by LOCAL date — see to_local_date().
+    params = {
+        "chat_id": chat_id,
+        "start_date": to_local_date(start_utc, tz),
+        "end_date": to_local_date(end_utc, tz),
+    }
 
     if search:
         base_query += """
@@ -322,7 +335,10 @@ async def get_chat_users(
     ]
 
     return UserStatsResponse(
-        users=users,
+        # `items`, not `users` — the schema field is items, with no alias, so
+        # this raised ValidationError and the endpoint returned 500 on EVERY
+        # request. Nothing in the suite invoked it.
+        items=users,
         total=total,
         page=page,
         per_page=per_page,

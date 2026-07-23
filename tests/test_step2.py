@@ -1,12 +1,12 @@
 """Additional tests for Step 2 functionality."""
 
 from datetime import datetime
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
 import pytest
 
-from tgstats.web.date_utils import parse_period, rotate_heatmap_rows
+from tgstats.web.date_utils import parse_period, rotate_heatmap_rows, to_local_date
 from tgstats.web.query_utils import (
     build_heatmap_query,
     build_timeseries_query,
@@ -52,6 +52,39 @@ class TestTimezoneHandling:
         assert start_utc.hour == 22
         assert end_utc.day == 15
         assert end_utc.hour == 21
+
+    def test_local_date_bounds_west_of_utc(self):
+        """Daily-aggregate bounds must be LOCAL dates, not end_utc.date().
+
+        Regression test. Moving to_date to the local end of day (correct for
+        timestamp ranges) pushes end_utc onto the NEXT UTC date for any timezone
+        west of UTC: America/Los_Angeles to=2025-01-07 gives end_utc
+        2025-01-08 07:59. chat_daily[_mv] / user_chat_daily[_mv] are keyed by
+        local date, so bounding them with end_utc.date() silently included an
+        extra day. Every existing test used UTC or Europe/Sofia (both at or east
+        of UTC), where the bug is invisible.
+        """
+        tz = ZoneInfo("America/Los_Angeles")
+        start_utc, end_utc, days = parse_period(from_date="2025-01-01", to_date="2025-01-07", tz=tz)
+
+        # The raw UTC instant does land on the next day — that part is correct,
+        # it is what makes the timestamp range cover all of 7 Jan locally.
+        assert end_utc.date().isoformat() == "2025-01-08"
+
+        # ...but the aggregate bound must be the local date that was asked for.
+        assert to_local_date(start_utc, tz).isoformat() == "2025-01-01"
+        assert to_local_date(end_utc, tz).isoformat() == "2025-01-07"
+        assert days == 7
+
+    def test_local_date_bounds_east_of_utc_and_utc(self):
+        """Same bounds hold at and east of UTC."""
+        for name in ("UTC", "Europe/Sofia"):
+            tz = ZoneInfo(name)
+            start_utc, end_utc, _ = parse_period(
+                from_date="2025-01-01", to_date="2025-01-07", tz=tz
+            )
+            assert to_local_date(start_utc, tz).isoformat() == "2025-01-01", name
+            assert to_local_date(end_utc, tz).isoformat() == "2025-01-07", name
 
     def test_get_group_tz_with_settings(self):
         """Test getting group timezone from settings."""
@@ -235,3 +268,71 @@ def test_timezone_edge_cases():
 
 if __name__ == "__main__":
     pytest.main([__file__])
+
+
+class TestAggregateDateBounds:
+    """The endpoints must bind LOCAL dates to daily-aggregate queries.
+
+    These call the router functions with a mocked session and inspect the
+    parameters actually bound. Asserting on to_local_date() alone was not
+    enough: reverting the call sites to end_utc.date() left the whole suite
+    green, because nothing exercised the binding itself.
+    """
+
+    @staticmethod
+    def _session_returning_nothing():
+        session = Mock()
+        session.execute.return_value.fetchall.return_value = []
+        return session
+
+    @pytest.mark.asyncio
+    async def test_timeseries_binds_local_dates(self):
+        from tgstats.web.routers import analytics
+
+        session = self._session_returning_nothing()
+        with (
+            patch.object(analytics, "get_group_tz", return_value=ZoneInfo("America/Los_Angeles")),
+            patch.object(analytics, "check_timescaledb_available", return_value=False),
+        ):
+            await analytics.get_chat_timeseries(
+                chat_id=1,
+                metric="messages",
+                from_date="2025-01-01",
+                to_date="2025-01-07",
+                session=session,
+                _token=None,
+            )
+
+        params = session.execute.call_args[0][1]
+        assert params["start_date"].isoformat() == "2025-01-01"
+        # end_utc is 2025-01-08 07:59 for LA; binding that date would pull in
+        # an extra day of chat_daily aggregates.
+        assert params["end_date"].isoformat() == "2025-01-07"
+
+    @pytest.mark.asyncio
+    async def test_users_binds_local_dates(self):
+        from tgstats.web.routers import analytics
+
+        session = self._session_returning_nothing()
+        # the users endpoint reads a count via .fetchone().total
+        session.execute.return_value.fetchone.return_value = Mock(total=0)
+        with (
+            patch.object(analytics, "get_group_tz", return_value=ZoneInfo("America/Los_Angeles")),
+            patch.object(analytics, "check_timescaledb_available", return_value=False),
+        ):
+            await analytics.get_chat_users(
+                chat_id=1,
+                from_date="2025-01-01",
+                to_date="2025-01-07",
+                sort="act",
+                search=None,
+                left=None,
+                page=1,
+                per_page=50,
+                session=session,
+                _token=None,
+            )
+
+        bound = [c[0][1] for c in session.execute.call_args_list if len(c[0]) > 1]
+        assert bound, "no parameterised query was executed"
+        assert all(p["end_date"].isoformat() == "2025-01-07" for p in bound if "end_date" in p)

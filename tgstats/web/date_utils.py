@@ -69,6 +69,18 @@ def parse_period(
     return start_utc, end_utc, days
 
 
+def to_local_date(utc_naive: datetime, tz: ZoneInfo):
+    """Local calendar date of a naive-UTC instant.
+
+    Daily aggregate tables (chat_daily[_mv], user_chat_daily[_mv]) are keyed by
+    local DATE, so they must be bounded by local dates — never by
+    `end_utc.date()`. For a timezone WEST of UTC the local end-of-day instant
+    falls on the next UTC date (America/Los_Angeles `to=2025-01-07` gives
+    end_utc 2025-01-08 07:59), which would pull in an extra day of aggregates.
+    """
+    return utc_naive.replace(tzinfo=ZoneInfo("UTC")).astimezone(tz).date()
+
+
 def rotate_heatmap_rows(rows: List[Tuple], tz: ZoneInfo) -> List[List[int]]:
     """
     Rotate heatmap data from UTC to local timezone.
