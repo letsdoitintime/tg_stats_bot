@@ -202,7 +202,11 @@ def retention_preview(self, chat_id: int) -> Dict[str, Any]:
             if not settings_result:
                 return {"error": "No settings found for chat"}
 
-            text_retention_days, metadata_retention_days, store_text, timezone = settings_result
+            # NOT `timezone` — that name is the datetime.timezone import, and
+            # binding the row's timezone string to it made the next line evaluate
+            # 'UTC'.utc, so this task raised AttributeError every single time.
+            # The value is not used here anyway; cutoffs are computed in UTC.
+            text_retention_days, metadata_retention_days, store_text, _tz_name = settings_result
 
             # Calculate cutoff dates
             now = datetime.now(timezone.utc)
